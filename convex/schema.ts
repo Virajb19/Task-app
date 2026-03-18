@@ -4,18 +4,11 @@ import { v } from "convex/values";
 export default defineSchema({
   users: defineTable({
     username: v.string(),
+    email: v.string(),
+    password: v.string(),
+    profilePhotoId: v.optional(v.id("_storage")),
     createdAt: v.number(),
-  }).index("by_username", ["username"]),
-
-  credentials: defineTable({
-    userId: v.id("users"),
-    credentialId: v.string(),
-    publicKey: v.string(),
-    counter: v.number(),
-    transports: v.optional(v.array(v.string())),
-  })
-    .index("by_userId", ["userId"])
-    .index("by_credentialId", ["credentialId"]),
+  }).index("by_email", ["email"]),
 
   tasks: defineTable({
     userId: v.id("users"),

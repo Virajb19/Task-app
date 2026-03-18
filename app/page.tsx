@@ -1,11 +1,10 @@
 "use client";
-import { useState } from "react";
-import { useAuth } from "./AuthContext";
+import { useState, useRef, useCallback } from "react";
+import { useSession, signIn, signOut } from "next-auth/react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 import {
-  Fingerprint,
   Plus,
   LogOut,
   Trash2,
@@ -14,54 +13,424 @@ import {
   Sparkles,
   CircleCheckBig,
   Clock,
+  Camera,
+  User,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
   AlertCircle,
+  X,
+  RefreshCw,
 } from "lucide-react";
+
+// ─── Camera Capture Component ──────────────────────────────
+function CameraCapture({
+  onCapture,
+  currentPreview,
+}: {
+  onCapture: (blob: Blob) => void;
+  currentPreview: string | null;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const openCamera = useCallback(async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: 640, height: 640 },
+      });
+      setStream(mediaStream);
+      setIsCameraOpen(true);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+        }
+      }, 100);
+    } catch {
+      // Fallback to file input if camera not available
+      fileInputRef.current?.click();
+    }
+  }, []);
+
+  const closeCamera = useCallback(() => {
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop());
+      setStream(null);
+    }
+    setIsCameraOpen(false);
+  }, [stream]);
+
+  const takePhoto = useCallback(() => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    canvas.width = 300;
+    canvas.height = 300;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Center crop
+    const size = Math.min(video.videoWidth, video.videoHeight);
+    const sx = (video.videoWidth - size) / 2;
+    const sy = (video.videoHeight - size) / 2;
+    ctx.drawImage(video, sx, sy, size, size, 0, 0, 300, 300);
+
+    canvas.toBlob(
+      (blob) => {
+        if (blob) onCapture(blob);
+        closeCamera();
+      },
+      "image/jpeg",
+      0.85
+    );
+  }, [onCapture, closeCamera]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    onCapture(file);
+  };
+
+  return (
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="user"
+        onChange={handleFileSelect}
+        style={{ display: "none" }}
+      />
+      <canvas ref={canvasRef} style={{ display: "none" }} />
+
+      {isCameraOpen ? (
+        <div
+          className="animate-fade-in"
+          style={{
+            position: "relative",
+            width: "100%",
+            borderRadius: "1rem",
+            overflow: "hidden",
+            background: "#000",
+          }}
+        >
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            style={{
+              width: "100%",
+              aspectRatio: "1",
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              bottom: "1rem",
+              left: 0,
+              right: 0,
+              display: "flex",
+              justifyContent: "center",
+              gap: "1rem",
+            }}
+          >
+            <button
+              type="button"
+              onClick={closeCamera}
+              className="btn-ghost"
+              style={{
+                padding: "0.5rem 1rem",
+                fontSize: "0.8125rem",
+                background: "rgba(0,0,0,0.5)",
+                backdropFilter: "blur(10px)",
+              }}
+            >
+              <X size={16} />
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={takePhoto}
+              className="btn-primary"
+              style={{
+                padding: "0.75rem 1.5rem",
+                borderRadius: "2rem",
+              }}
+            >
+              <Camera size={18} />
+              Capture
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={openCamera}
+          style={{
+            width: "100px",
+            height: "100px",
+            borderRadius: "50%",
+            border: "2px dashed var(--border-light)",
+            background: currentPreview ? "none" : "var(--surface)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+            transition: "all 0.2s ease",
+            position: "relative",
+          }}
+        >
+          {currentPreview ? (
+            <>
+              <img
+                src={currentPreview}
+                alt="Profile"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "rgba(0,0,0,0.4)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity: 0,
+                  transition: "opacity 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.target as HTMLElement).style.opacity = "1";
+                }}
+                onMouseLeave={(e) => {
+                  (e.target as HTMLElement).style.opacity = "0";
+                }}
+              >
+                <RefreshCw size={20} color="white" />
+              </div>
+            </>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "0.25rem",
+              }}
+            >
+              <Camera size={24} color="var(--text-muted)" />
+              <span
+                style={{ fontSize: "0.625rem", color: "var(--text-muted)" }}
+              >
+                Photo
+              </span>
+            </div>
+          )}
+        </button>
+      )}
+    </>
+  );
+}
+
+// ─── Profile Photo Component ───────────────────────────────
+function ProfilePhoto({
+  userId,
+  size = 36,
+  onClick,
+}: {
+  userId: string;
+  size?: number;
+  onClick?: () => void;
+}) {
+  const user = useQuery(api.auth.getUserById, {
+    userId: userId as Id<"users">,
+  });
+  const photoUrl = useQuery(
+    api.auth.getProfilePhotoUrl,
+    user?.profilePhotoId ? { storageId: user.profilePhotoId } : "skip"
+  );
+
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        borderRadius: "50%",
+        border: "2px solid var(--border-light)",
+        background: "var(--surface)",
+        cursor: onClick ? "pointer" : "default",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden",
+        padding: 0,
+        flexShrink: 0,
+      }}
+    >
+      {photoUrl ? (
+        <img
+          src={photoUrl}
+          alt="Profile"
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      ) : (
+        <User size={size * 0.5} color="var(--text-muted)" />
+      )}
+    </button>
+  );
+}
 
 // ─── Auth Screen ───────────────────────────────────────────
 function AuthScreen() {
-  const { register, login, loading, error, clearError } = useAuth();
-  const [username, setUsername] = useState("");
   const [mode, setMode] = useState<"login" | "register">("login");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
-  const handleSubmit = async () => {
-    if (!username.trim()) return;
-    clearError();
+  const generateUploadUrl = useMutation(api.auth.generateUploadUrl);
+
+  const handlePhotoCapture = (blob: Blob) => {
+    setPhotoBlob(blob);
+    const url = URL.createObjectURL(blob);
+    setPhotoPreview(url);
+  };
+
+  const uploadPhoto = async (): Promise<string | null> => {
+    if (!photoBlob) return null;
     try {
-      if (mode === "register") {
-        await register(username.trim());
-      } else {
-        await login(username.trim());
-      }
+      const uploadUrl = await generateUploadUrl();
+      const result = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": photoBlob.type },
+        body: photoBlob,
+      });
+      const { storageId } = await result.json();
+      return storageId;
     } catch {
-      // error is already set in context
+      console.error("Photo upload failed");
+      return null;
     }
+  };
+
+  const handleRegister = async () => {
+    if (!username.trim() || !email.trim() || !password) return;
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Upload photo first if captured
+      const profilePhotoId = await uploadPhoto();
+
+      // Register user
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: username.trim(),
+          email: email.trim().toLowerCase(),
+          password,
+          profilePhotoId,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Registration failed");
+      }
+
+      // Auto-login after registration
+      const signInResult = await signIn("credentials", {
+        email: email.trim().toLowerCase(),
+        password,
+        redirect: false,
+      });
+
+      if (signInResult?.error) {
+        throw new Error("Auto-login failed. Please sign in manually.");
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Registration failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password) return;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await signIn("credentials", {
+        email: email.trim().toLowerCase(),
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        throw new Error(result.error);
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Sign in failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mode === "register") handleRegister();
+    else handleLogin();
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center relative">
       <div className="bg-mesh" />
       <div className="glass-strong auth-card animate-fade-in-up relative z-10">
-        <div className="flex flex-col items-center gap-6">
-          {/* Logo & Title */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="fingerprint-icon">
-              <Fingerprint size={48} strokeWidth={1.5} color="#8b5cf6" />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight">TaskFlow</h1>
-            <p
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "1.25rem",
+          }}
+        >
+          {/* Logo */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
+            <div
               style={{
-                color: "var(--text-muted)",
-                fontSize: "0.875rem",
-                textAlign: "center",
+                padding: "0.75rem",
+                background: "rgba(139, 92, 246, 0.1)",
+                borderRadius: "1rem",
               }}
             >
-              {mode === "register"
-                ? "Create your account with biometric security"
-                : "Sign in with your fingerprint"}
+              <Sparkles size={32} color="#8b5cf6" />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight">TaskFlow</h1>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
+              {mode === "register" ? "Create your account" : "Welcome back"}
             </p>
           </div>
 
-          {/* Error Message */}
+          {/* Error */}
           {error && (
             <div className="error-toast" style={{ width: "100%" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -71,46 +440,134 @@ function AuthScreen() {
             </div>
           )}
 
-          {/* Form */}
-          <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "1rem" }}>
+          {/* Camera (register only) */}
+          {mode === "register" && (
+            <CameraCapture
+              onCapture={handlePhotoCapture}
+              currentPreview={photoPreview}
+            />
+          )}
+
+          {/* Username (register only) */}
+          {mode === "register" && (
+            <div style={{ position: "relative", width: "100%" }}>
+              <User
+                size={18}
+                style={{
+                  position: "absolute",
+                  left: "0.875rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "var(--text-muted)",
+                }}
+              />
+              <input
+                className="input-field"
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={loading}
+                style={{ paddingLeft: "2.75rem" }}
+              />
+            </div>
+          )}
+
+          {/* Email */}
+          <div style={{ position: "relative", width: "100%" }}>
+            <Mail
+              size={18}
+              style={{
+                position: "absolute",
+                left: "0.875rem",
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--text-muted)",
+              }}
+            />
             <input
               className="input-field"
-              type="text"
-              placeholder="Enter your username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
               autoFocus
+              style={{ paddingLeft: "2.75rem" }}
+            />
+          </div>
+
+          {/* Password */}
+          <div style={{ position: "relative", width: "100%" }}>
+            <Lock
+              size={18}
+              style={{
+                position: "absolute",
+                left: "0.875rem",
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--text-muted)",
+              }}
+            />
+            <input
+              className="input-field"
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+              style={{ paddingLeft: "2.75rem", paddingRight: "2.75rem" }}
             />
             <button
-              className="btn-primary"
-              onClick={handleSubmit}
-              disabled={!username.trim() || loading}
-              style={{ width: "100%", padding: "0.875rem" }}
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: "absolute",
+                right: "0.875rem",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: 0,
+                color: "var(--text-muted)",
+              }}
             >
-              {loading ? (
-                <div className="spinner" />
-              ) : (
-                <>
-                  <Fingerprint size={20} />
-                  {mode === "register"
-                    ? "Register with Fingerprint"
-                    : "Sign in with Fingerprint"}
-                </>
-              )}
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
 
-          {/* Toggle mode */}
+          {/* Submit */}
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={
+              loading ||
+              !email.trim() ||
+              !password ||
+              (mode === "register" && !username.trim())
+            }
+            style={{ width: "100%", padding: "0.875rem" }}
+          >
+            {loading ? (
+              <div className="spinner" />
+            ) : mode === "register" ? (
+              "Create Account"
+            ) : (
+              "Sign In"
+            )}
+          </button>
+
+          {/* Toggle */}
           <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>
             {mode === "login" ? (
               <>
                 Don&apos;t have an account?{" "}
                 <button
+                  type="button"
                   onClick={() => {
                     setMode("register");
-                    clearError();
+                    setError(null);
                   }}
                   style={{
                     color: "var(--accent-light)",
@@ -127,11 +584,12 @@ function AuthScreen() {
               </>
             ) : (
               <>
-                Already registered?{" "}
+                Already have an account?{" "}
                 <button
+                  type="button"
                   onClick={() => {
                     setMode("login");
-                    clearError();
+                    setError(null);
                   }}
                   style={{
                     color: "var(--accent-light)",
@@ -143,11 +601,110 @@ function AuthScreen() {
                     fontFamily: "inherit",
                   }}
                 >
-                  Sign in
+                  Sign In
                 </button>
               </>
             )}
           </p>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Update Photo Modal ────────────────────────────────────
+function UpdatePhotoModal({
+  userId,
+  onClose,
+}: {
+  userId: string;
+  onClose: () => void;
+}) {
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const generateUploadUrl = useMutation(api.auth.generateUploadUrl);
+  const updateProfilePhoto = useMutation(api.auth.updateProfilePhoto);
+
+  const handlePhotoCapture = (blob: Blob) => {
+    setPhotoBlob(blob);
+    setPhotoPreview(URL.createObjectURL(blob));
+  };
+
+  const handleSave = async () => {
+    if (!photoBlob) return;
+    setUploading(true);
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const result = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": photoBlob.type },
+        body: photoBlob,
+      });
+      const { storageId } = await result.json();
+      await updateProfilePhoto({
+        userId: userId as Id<"users">,
+        storageId,
+      });
+      onClose();
+    } catch (err) {
+      console.error("Upload failed:", err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.6)",
+        backdropFilter: "blur(8px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 100,
+        padding: "1rem",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="glass-strong animate-fade-in-up"
+        style={{
+          padding: "2rem",
+          maxWidth: "400px",
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "1.25rem",
+        }}
+      >
+        <h2 style={{ fontSize: "1.125rem", fontWeight: 600 }}>
+          Update Profile Photo
+        </h2>
+        <CameraCapture
+          onCapture={handlePhotoCapture}
+          currentPreview={photoPreview}
+        />
+        <div style={{ display: "flex", gap: "0.75rem", width: "100%" }}>
+          <button
+            className="btn-ghost"
+            onClick={onClose}
+            style={{ flex: 1 }}
+          >
+            Cancel
+          </button>
+          <button
+            className="btn-primary"
+            onClick={handleSave}
+            disabled={!photoBlob || uploading}
+            style={{ flex: 1 }}
+          >
+            {uploading ? <div className="spinner" /> : "Save Photo"}
+          </button>
         </div>
       </div>
     </div>
@@ -156,8 +713,8 @@ function AuthScreen() {
 
 // ─── Task Dashboard ────────────────────────────────────────
 function TaskDashboard() {
-  const { user, logout } = useAuth();
-  const userId = user!.userId as Id<"users">;
+  const { data: session } = useSession();
+  const userId = session!.user.id as Id<"users">;
 
   const tasks = useQuery(api.tasks.get, { userId });
   const createTask = useMutation(api.tasks.create);
@@ -166,13 +723,11 @@ function TaskDashboard() {
 
   const [newTaskText, setNewTaskText] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
 
   const handleAddTask = async () => {
     if (!newTaskText.trim()) return;
-    await createTask({
-      userId,
-      text: newTaskText.trim(),
-    });
+    await createTask({ userId, text: newTaskText.trim() });
     setNewTaskText("");
     setIsAdding(false);
   };
@@ -205,26 +760,40 @@ function TaskDashboard() {
             marginBottom: "1.5rem",
           }}
         >
-          <div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                marginBottom: "0.25rem",
-              }}
-            >
-              <Sparkles size={20} color="var(--accent-light)" />
-              <h1 className="text-xl font-bold tracking-tight">TaskFlow</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <ProfilePhoto
+              userId={session!.user.id}
+              size={42}
+              onClick={() => setShowPhotoModal(true)}
+            />
+            <div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  marginBottom: "0.125rem",
+                }}
+              >
+                <h1 className="text-lg font-bold tracking-tight">TaskFlow</h1>
+              </div>
+              <p
+                style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}
+              >
+                Hey,{" "}
+                <span
+                  style={{ color: "var(--accent-light)", fontWeight: 600 }}
+                >
+                  {session?.user?.name}
+                </span>
+              </p>
             </div>
-            <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>
-              Welcome back,{" "}
-              <span style={{ color: "var(--accent-light)", fontWeight: 600 }}>
-                {user?.username}
-              </span>
-            </p>
           </div>
-          <button className="btn-ghost" onClick={logout} style={{ padding: "0.5rem 1rem", fontSize: "0.8125rem" }}>
+          <button
+            className="btn-ghost"
+            onClick={() => signOut()}
+            style={{ padding: "0.5rem 1rem", fontSize: "0.8125rem" }}
+          >
             <LogOut size={16} />
             Sign Out
           </button>
@@ -241,13 +810,31 @@ function TaskDashboard() {
               <span className="stat-label">Total</span>
             </div>
             <div className="stat-item">
-              <span className="stat-value" style={{ background: "linear-gradient(135deg, var(--success), #6ee7b7)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+              <span
+                className="stat-value"
+                style={{
+                  background:
+                    "linear-gradient(135deg, var(--success), #6ee7b7)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
                 {completedCount}
               </span>
               <span className="stat-label">Done</span>
             </div>
             <div className="stat-item">
-              <span className="stat-value" style={{ background: "linear-gradient(135deg, var(--warning), #fcd34d)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+              <span
+                className="stat-value"
+                style={{
+                  background:
+                    "linear-gradient(135deg, var(--warning), #fcd34d)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
                 {pendingCount}
               </span>
               <span className="stat-label">Pending</span>
@@ -262,7 +849,6 @@ function TaskDashboard() {
             )}
           </div>
 
-          {/* Progress bar */}
           {totalCount > 0 && (
             <div
               style={{
@@ -287,7 +873,7 @@ function TaskDashboard() {
           )}
         </div>
 
-        {/* Add Task Section */}
+        {/* Add Task */}
         {isAdding ? (
           <div
             className="glass animate-slide-down"
@@ -308,39 +894,26 @@ function TaskDashboard() {
               onKeyDown={(e) => e.key === "Enter" && handleAddTask()}
               autoFocus
             />
-            <div
-              style={{
-                display: "flex",
-                gap: "0.5rem",
-                justifyContent: "flex-end",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  gap: "0.5rem",
+            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+              <button
+                className="btn-ghost"
+                onClick={() => {
+                  setIsAdding(false);
+                  setNewTaskText("");
                 }}
+                style={{ padding: "0.5rem 1rem", fontSize: "0.8125rem" }}
               >
-                <button
-                  className="btn-ghost"
-                  onClick={() => {
-                    setIsAdding(false);
-                    setNewTaskText("");
-                  }}
-                  style={{ padding: "0.5rem 1rem", fontSize: "0.8125rem" }}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="btn-primary"
-                  onClick={handleAddTask}
-                  disabled={!newTaskText.trim()}
-                  style={{ padding: "0.5rem 1rem", fontSize: "0.8125rem" }}
-                >
-                  <Plus size={16} />
-                  Add
-                </button>
-              </div>
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                onClick={handleAddTask}
+                disabled={!newTaskText.trim()}
+                style={{ padding: "0.5rem 1rem", fontSize: "0.8125rem" }}
+              >
+                <Plus size={16} />
+                Add
+              </button>
             </div>
           </div>
         ) : (
@@ -361,7 +934,6 @@ function TaskDashboard() {
         {/* Task List */}
         <div style={{ flex: 1 }}>
           {tasks === undefined ? (
-            // Loading skeleton
             <div
               style={{
                 display: "flex",
@@ -402,7 +974,6 @@ function TaskDashboard() {
                 gap: "0.5rem",
               }}
             >
-              {/* Pending tasks */}
               {tasks
                 .filter((t) => !t.isCompleted)
                 .map((task) => (
@@ -414,7 +985,6 @@ function TaskDashboard() {
                   />
                 ))}
 
-              {/* Completed tasks */}
               {completedCount > 0 && pendingCount > 0 && (
                 <div
                   style={{
@@ -477,14 +1047,17 @@ function TaskDashboard() {
             color: "var(--text-muted)",
           }}
         >
-          Secured with biometric authentication ·{" "}
-          <Fingerprint
-            size={12}
-            style={{ display: "inline", verticalAlign: "middle" }}
-          />{" "}
-          TaskFlow
+          Powered by Convex · TaskFlow
         </footer>
       </div>
+
+      {/* Photo Update Modal */}
+      {showPhotoModal && (
+        <UpdatePhotoModal
+          userId={session!.user.id}
+          onClose={() => setShowPhotoModal(false)}
+        />
+      )}
     </div>
   );
 }
@@ -546,7 +1119,11 @@ function TaskItem({
         </p>
       </div>
 
-      <button className="btn-danger" onClick={onDelete} aria-label="Delete task">
+      <button
+        className="btn-danger"
+        onClick={onDelete}
+        aria-label="Delete task"
+      >
         <Trash2 size={16} />
       </button>
     </div>
@@ -568,35 +1145,43 @@ function getTimeAgo(timestamp: number): string {
   if (months < 12) return `${months}mo ago`;
   const years = Math.floor(months / 12);
   if (years >= 1) return `${years}y ago`;
-  // Format as "26 Jan 2025"
   const date = new Date(timestamp);
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthNames = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
   return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
 }
 
 function formatDate(timestamp: number): string {
   const date = new Date(timestamp);
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthNames = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
   return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
 }
 
 // ─── Main Page ─────────────────────────────────────────────
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { data: session, status } = useSession();
 
-  if (loading) {
+  if (status === "loading") {
     return (
       <div
         className="flex min-h-screen items-center justify-center"
         style={{ background: "var(--background)" }}
       >
         <div className="bg-mesh" />
-        <div className="spinner" style={{ width: 32, height: 32, borderWidth: 3 }} />
+        <div
+          className="spinner"
+          style={{ width: 32, height: 32, borderWidth: 3 }}
+        />
       </div>
     );
   }
 
-  if (!user) {
+  if (!session) {
     return <AuthScreen />;
   }
 

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Inter, Lato } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { ConvexClientProvider } from "./ConvexClientProvider";
-import { AuthProvider } from "./AuthContext";
+import NextAuthProvider from "./SessionProvider";
 
 const inter = Inter({
   variable: "--font-geist-sans",
@@ -10,16 +10,10 @@ const inter = Inter({
   weight: ["300", "400", "500", "600", "700"],
 });
 
-const lato = Lato({
-  variable: "--font-lato",
-  subsets: ["latin"],
-  weight: ["300", "400", "700"],
-});
-
 export const metadata: Metadata = {
-  title: "TaskFlow — Secure Task Manager",
+  title: "TaskFlow — Smart Task Manager",
   description:
-    "A beautiful and secure task management app with fingerprint authentication powered by Convex.",
+    "A beautiful and secure task management app powered by Convex.",
 };
 
 export default function RootLayout({
@@ -29,10 +23,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${lato.variable} antialiased`}>
-        <ConvexClientProvider>
-          <AuthProvider>{children}</AuthProvider>
-        </ConvexClientProvider>
+      <body className={`${inter.variable} antialiased`}>
+        <NextAuthProvider>
+          <ConvexClientProvider>{children}</ConvexClientProvider>
+        </NextAuthProvider>
       </body>
     </html>
   );
