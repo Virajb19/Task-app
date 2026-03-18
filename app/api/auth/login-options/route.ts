@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
 
     const allowCredentials = credentials.map((cred) => ({
       id: cred.credentialId,
+      type: "public-key",
       transports: cred.transports as AuthenticatorTransport[] | undefined,
     }));
 
