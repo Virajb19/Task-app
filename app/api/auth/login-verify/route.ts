@@ -5,12 +5,24 @@ import { api } from "../../../../convex/_generated/api";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
-const rpID = process.env.RP_ID || "localhost";
-const expectedOrigin = process.env.EXPECTED_ORIGIN || "http://localhost:3000";
+function getRpId(req: NextRequest): string {
+  const host = req.headers.get("host") || "localhost";
+  return host.split(":")[0];
+}
+
+function getExpectedOrigin(req: NextRequest): string {
+  const origin = req.headers.get("origin");
+  if (origin) return origin;
+  const proto = req.headers.get("x-forwarded-proto") || "http";
+  const host = req.headers.get("host") || "localhost:3000";
+  return `${proto}://${host}`;
+}
 
 export async function POST(req: NextRequest) {
   try {
     const { credential, expectedChallenge, userId } = await req.json();
+    const rpID = getRpId(req);
+    const expectedOrigin = getExpectedOrigin(req);
 
     // Find the credential in our database
     const credentialId = credential.id;

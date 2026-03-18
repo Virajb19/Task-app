@@ -6,11 +6,16 @@ import { api } from "../../../../convex/_generated/api";
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 const rpName = "TaskFlow";
-const rpID = process.env.RP_ID || "localhost";
+
+function getRpId(req: NextRequest): string {
+  const host = req.headers.get("host") || "localhost";
+  return host.split(":")[0]; // strip port
+}
 
 export async function POST(req: NextRequest) {
   try {
     const { username } = await req.json();
+    const rpID = getRpId(req);
 
     if (!username || typeof username !== "string") {
       return NextResponse.json(
