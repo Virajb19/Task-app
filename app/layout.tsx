@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Lato } from "next/font/google";
 import "./globals.css";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import NextAuthProvider from "./SessionProvider";
@@ -8,6 +8,13 @@ const inter = Inter({
   variable: "--font-geist-sans",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
+});
+
+const lato = Lato({
+  subsets: ["latin"],
+  variable: "--font-lato",
+  display: "swap",
+  weight: ["400", "700", "300"],
 });
 
 export const metadata: Metadata = {
@@ -23,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} antialiased`}>
+      <body className={`${lato.variable} antialiased`}>
         <NextAuthProvider>
           <ConvexClientProvider>{children}</ConvexClientProvider>
         </NextAuthProvider>
