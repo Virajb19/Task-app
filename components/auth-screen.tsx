@@ -288,7 +288,7 @@ export function AuthScreen() {
 
           {mode === "login" && (
             <div style={{ width: "100%", marginTop: "-0.35rem" }}>
-              <button
+              {/* <button
                 type="button"
                 onClick={() => {
                   setShowForgotPassword((prev) => !prev);
@@ -306,7 +306,7 @@ export function AuthScreen() {
                 }}
               >
                 Forgot password?
-              </button>
+              </button> */}
               {showForgotPassword && (
                 <div
                   className="glass"
