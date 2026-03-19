@@ -7,6 +7,7 @@ import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { useMediaQuery } from "usehooks-ts";
 import {
   Plus,
   LogOut,
@@ -31,11 +32,21 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 // ─── Camera Capture Component ──────────────────────────────
 function CameraCapture({
@@ -1340,9 +1351,27 @@ function TaskItem({
   onEdit: (text: string) => void;
   onTogglePriority: () => void;
 }) {
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const [isEditing, setIsEditing] = useState(false);
   const [draftText, setDraftText] = useState(task.text);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const toggleEdit = () => {
+    setDraftText(task.text);
+    setIsEditing((prev) => !prev);
+    setIsMobileMenuOpen(false);
+  };
+
+  const togglePriority = () => {
+    void onTogglePriority();
+    setIsMobileMenuOpen(false);
+  };
+
+  const openDelete = () => {
+    setIsDeleteDialogOpen(true);
+    setIsMobileMenuOpen(false);
+  };
 
   const timeAgo = getTimeAgo(task.createdAt);
   const dateColor = getTaskDateColor(task.createdAt);
@@ -1436,45 +1465,48 @@ function TaskItem({
         </p>
       </div>
 
-      <button
-        type="button"
-        className="btn-ghost hidden sm:inline-flex"
-        onClick={onTogglePriority}
-        aria-label={highPriority ? "Remove high priority" : "Mark high priority"}
-        style={{
-          padding: "0.4rem",
-          minWidth: "unset",
-          color: highPriority ? "#c4b5fd" : "var(--text-muted)",
-          borderColor: highPriority ? "rgba(196, 181, 253, 0.6)" : "var(--border)",
-        }}
-      >
-        <Flame size={15} />
-      </button>
+      {isDesktop ? (
+        <>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={togglePriority}
+            aria-label={
+              highPriority ? "Remove high priority" : "Mark high priority"
+            }
+            style={{
+              padding: "0.4rem",
+              minWidth: "unset",
+              color: highPriority ? "#c4b5fd" : "var(--text-muted)",
+              borderColor: highPriority
+                ? "rgba(196, 181, 253, 0.6)"
+                : "var(--border)",
+            }}
+          >
+            <Flame size={15} />
+          </button>
 
-      <button
-        type="button"
-        className="btn-ghost hidden sm:inline-flex"
-        onClick={() => {
-          setDraftText(task.text);
-          setIsEditing((prev) => !prev);
-        }}
-        aria-label={isEditing ? "Cancel edit" : "Edit task"}
-        style={{ padding: "0.4rem", minWidth: "unset" }}
-      >
-        <Pencil size={15} />
-      </button>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={toggleEdit}
+            aria-label={isEditing ? "Cancel edit" : "Edit task"}
+            style={{ padding: "0.4rem", minWidth: "unset" }}
+          >
+            <Pencil size={15} />
+          </button>
 
-      <button
-        type="button"
-        className="btn-danger hidden sm:inline-flex"
-        aria-label="Delete task"
-        onClick={() => setIsDeleteDialogOpen(true)}
-      >
-        <Trash2 size={16} />
-      </button>
-
-      <div className="sm:hidden">
-        <DropdownMenu>
+          <button
+            type="button"
+            className="btn-danger"
+            aria-label="Delete task"
+            onClick={openDelete}
+          >
+            <Trash2 size={16} />
+          </button>
+        </>
+      ) : (
+        <DropdownMenu open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <DropdownMenuTrigger
             className="btn-ghost"
             aria-label="Task options"
@@ -1490,108 +1522,69 @@ function TaskItem({
           >
             <MoreHorizontal size={16} />
           </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={onTogglePriority}>
+          <DropdownMenuContent
+            align="end"
+            sideOffset={8}
+            className="w-44 min-w-44 border-zinc-700 bg-zinc-900 text-zinc-100 shadow-lg ring-0"
+          >
+            <DropdownMenuItem
+              onClick={(event) => {
+                event.preventDefault();
+                togglePriority();
+              }}
+            >
               <Flame size={14} />
               {highPriority ? "Remove Priority" : "Mark Priority"}
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => {
-                setDraftText(task.text);
-                setIsEditing((prev) => !prev);
+              onClick={(event) => {
+                event.preventDefault();
+                toggleEdit();
               }}
             >
               <Pencil size={14} />
               {isEditing ? "Cancel Edit" : "Edit"}
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => setIsDeleteDialogOpen(true)}
-              className="text-[#fca5a5]"
+              variant="destructive"
+              onClick={(event) => {
+                event.preventDefault();
+                openDelete();
+              }}
             >
               <Trash2 size={14} />
               Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
-
-      {isDeleteDialogOpen && (
-        <div
-          onClick={() => setIsDeleteDialogOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 120,
-            background: "rgba(0, 0, 0, 0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "1rem",
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "100%",
-              maxWidth: "360px",
-              borderRadius: "0.9rem",
-              border: "1px solid #3f3f46",
-              background: "#18181b",
-              color: "#f4f4f5",
-              padding: "1rem",
-              boxShadow: "0 8px 30px rgba(0,0,0,0.45)",
-            }}
-          >
-            <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>
-              Delete Task
-            </h3>
-            <p
-              style={{
-                marginTop: "0.5rem",
-                marginBottom: "1rem",
-                color: "#d4d4d8",
-                fontSize: "0.875rem",
-                lineHeight: 1.45,
-              }}
-            >
-              Are you sure you want to delete <strong>&ldquo;{task.text}&rdquo;</strong>? This action cannot be undone.
-            </p>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "0.5rem",
-              }}
-            >
-              <button
-                type="button"
-                className="btn-ghost"
-                style={{ padding: "0.45rem 0.8rem", fontSize: "0.8125rem" }}
-                onClick={() => setIsDeleteDialogOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-danger"
-                style={{
-                  opacity: 1,
-                  background: "#dc2626",
-                  color: "#fff",
-                  padding: "0.45rem 0.8rem",
-                  fontSize: "0.8125rem",
-                }}
-                onClick={() => {
-                  onDelete();
-                  setIsDeleteDialogOpen(false);
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
       )}
+
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Task</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong>&ldquo;{task.text}&rdquo;</strong>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose variant="outline" size="sm">
+              Cancel
+            </DialogClose>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                onDelete();
+                setIsDeleteDialogOpen(false);
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
