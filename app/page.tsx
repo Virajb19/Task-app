@@ -44,6 +44,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -1525,9 +1526,10 @@ function TaskItem({
           <DropdownMenuContent
             align="end"
             sideOffset={8}
-            className="w-44 min-w-44 border-zinc-700 bg-zinc-900 text-zinc-100 shadow-lg ring-0"
+            className="w-48 min-w-48 border-zinc-700 bg-zinc-900 p-2 text-zinc-100 shadow-lg ring-0"
           >
             <DropdownMenuItem
+              className="gap-2 px-3 py-2.5"
               onClick={(event) => {
                 event.preventDefault();
                 togglePriority();
@@ -1536,7 +1538,9 @@ function TaskItem({
               <Flame size={14} />
               {highPriority ? "Remove Priority" : "Mark Priority"}
             </DropdownMenuItem>
+            <DropdownMenuSeparator className="my-1 bg-zinc-700/80" />
             <DropdownMenuItem
+              className="gap-2 px-3 py-2.5"
               onClick={(event) => {
                 event.preventDefault();
                 toggleEdit();
@@ -1545,7 +1549,9 @@ function TaskItem({
               <Pencil size={14} />
               {isEditing ? "Cancel Edit" : "Edit"}
             </DropdownMenuItem>
+            <DropdownMenuSeparator className="my-1 bg-zinc-700/80" />
             <DropdownMenuItem
+              className="gap-2 px-3 py-2.5"
               variant="destructive"
               onClick={(event) => {
                 event.preventDefault();
@@ -1622,11 +1628,15 @@ function formatDate(timestamp: number): string {
 }
 
 function getTaskDateColor(timestamp: number): string {
-  const ageInDays = Math.floor(
-    (new Date().getTime() - timestamp) / (1000 * 60 * 60 * 24)
-  );
-  if (ageInDays > 30) return "#f87171";
-  if (ageInDays > 15) return "#facc15";
+  if (!Number.isFinite(timestamp)) {
+    return "var(--text-secondary)";
+  }
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  const ageMs = Date.now() - timestamp;
+
+  if (ageMs >= 30 * dayMs) return "#f87171";
+  if (ageMs >= 15 * dayMs) return "#facc15";
   return "var(--text-secondary)";
 }
 
