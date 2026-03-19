@@ -40,7 +40,7 @@ export default function RootLayout({
         </NextAuthProvider>
         <Toaster
           theme="dark"
-          position="bottom-right"
+          position="top-center"
           richColors
           expand={false}
           duration={3000}
