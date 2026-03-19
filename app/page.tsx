@@ -2,8 +2,11 @@
 import { useState, useRef, useCallback } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useMutation, useQuery } from "convex/react";
+import { useMutationWithToast } from "@/lib/use-mutation-toast";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
+import { toast } from "sonner";
+import { motion } from "framer-motion";
 import {
   Plus,
   LogOut,
@@ -22,7 +25,21 @@ import {
   AlertCircle,
   X,
   RefreshCw,
+  Search,
+  Pencil,
+  Flame,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // ─── Camera Capture Component ──────────────────────────────
 function CameraCapture({
@@ -298,6 +315,9 @@ function AuthScreen() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -398,6 +418,35 @@ function AuthScreen() {
     e.preventDefault();
     if (mode === "register") handleRegister();
     else handleLogin();
+  };
+
+  const handleForgotPassword = async () => {
+    if (!forgotEmail.trim()) return;
+    setForgotLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail.trim().toLowerCase() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Unable to retrieve password");
+      }
+
+      toast.success(`Your password is: ${data.password}`, {
+        duration: 5000,
+      });
+      setShowForgotPassword(false);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Unable to retrieve password"
+      );
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   return (
@@ -537,6 +586,60 @@ function AuthScreen() {
             </button>
           </div>
 
+          {mode === "login" && (
+            <div style={{ width: "100%", marginTop: "-0.35rem" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForgotPassword((prev) => !prev);
+                  setForgotEmail(email);
+                  setError(null);
+                }}
+                style={{
+                  color: "var(--accent-light)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  fontSize: "0.8125rem",
+                  padding: 0,
+                }}
+              >
+                Forgot password?
+              </button>
+              {showForgotPassword && (
+                <div
+                  className="glass"
+                  style={{
+                    marginTop: "0.75rem",
+                    padding: "0.75rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <input
+                    className="input-field"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    disabled={forgotLoading}
+                  />
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={handleForgotPassword}
+                    disabled={forgotLoading || !forgotEmail.trim()}
+                    style={{ width: "100%", padding: "0.625rem" }}
+                  >
+                    {forgotLoading ? <div className="spinner" /> : "Get Password"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Submit */}
           <button
             type="submit"
@@ -624,7 +727,10 @@ function UpdatePhotoModal({
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [uploading, setUploading] = useState(false);
   const generateUploadUrl = useMutation(api.auth.generateUploadUrl);
-  const updateProfilePhoto = useMutation(api.auth.updateProfilePhoto);
+  const updateProfilePhoto = useMutationWithToast(api.auth.updateProfilePhoto, {
+    loading: "Uploading photo…",
+    success: "Photo updated!",
+  });
 
   const handlePhotoCapture = (blob: Blob) => {
     setPhotoBlob(blob);
@@ -717,24 +823,63 @@ function TaskDashboard() {
   const userId = session!.user.id as Id<"users">;
 
   const tasks = useQuery(api.tasks.get, { userId });
-  const createTask = useMutation(api.tasks.create);
-  const toggleTask = useMutation(api.tasks.toggleComplete);
-  const deleteTask = useMutation(api.tasks.remove);
+  const createTask = useMutationWithToast(api.tasks.create, {
+    loading: "Adding task…",
+  });
+  const toggleTask = useMutationWithToast(api.tasks.toggleComplete, {
+    loading: "Updating task…",
+  });
+  const deleteTask = useMutationWithToast(api.tasks.remove, {
+    loading: "Deleting task…",
+    success: "Task deleted",
+  });
+  const updateTask = useMutationWithToast(api.tasks.update, {
+    loading: "Saving task…",
+    success: "Task updated",
+  });
+  const togglePriorityTask = useMutationWithToast(api.tasks.togglePriority, {
+    loading: "Updating priority…",
+  });
 
   const [newTaskText, setNewTaskText] = useState("");
+  const [newTaskHighPriority, setNewTaskHighPriority] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [showHighPriorityOnly, setShowHighPriorityOnly] = useState(false);
 
   const handleAddTask = async () => {
     if (!newTaskText.trim()) return;
-    await createTask({ userId, text: newTaskText.trim() });
+    await createTask({
+      userId,
+      text: newTaskText.trim(),
+      isHighPriority: newTaskHighPriority,
+    });
     setNewTaskText("");
+    setNewTaskHighPriority(false);
     setIsAdding(false);
+  };
+
+  const handleEditTask = async (taskId: Id<"tasks">, text: string) => {
+    if (!text.trim()) return;
+    await updateTask({ taskId, text: text.trim() });
   };
 
   const completedCount = tasks?.filter((t) => t.isCompleted).length ?? 0;
   const totalCount = tasks?.length ?? 0;
   const pendingCount = totalCount - completedCount;
+  const filteredTasks = (tasks ?? []).filter((task) => {
+    const matchesSearch = task.text
+      .toLowerCase()
+      .includes(searchText.trim().toLowerCase());
+    const highPriority = Boolean(
+      (task as { isHighPriority?: boolean }).isHighPriority
+    );
+    const matchesPriority = showHighPriorityOnly ? highPriority : true;
+    return matchesSearch && matchesPriority;
+  });
+  const filteredCompletedCount = filteredTasks.filter((t) => t.isCompleted).length;
+  const filteredPendingCount = filteredTasks.length - filteredCompletedCount;
 
   return (
     <div className="relative min-h-screen">
@@ -894,12 +1039,31 @@ function TaskDashboard() {
               onKeyDown={(e) => e.key === "Enter" && handleAddTask()}
               autoFocus
             />
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setNewTaskHighPriority((prev) => !prev)}
+              style={{
+                alignSelf: "flex-start",
+                padding: "0.45rem 0.75rem",
+                fontSize: "0.75rem",
+                borderColor: newTaskHighPriority ? "#a78bfa" : undefined,
+                color: newTaskHighPriority ? "#c4b5fd" : undefined,
+                background: newTaskHighPriority
+                  ? "rgba(167, 139, 250, 0.12)"
+                  : undefined,
+              }}
+            >
+              <Flame size={14} />
+              {newTaskHighPriority ? "High Priority" : "Mark High Priority"}
+            </button>
             <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
               <button
                 className="btn-ghost"
                 onClick={() => {
                   setIsAdding(false);
                   setNewTaskText("");
+                  setNewTaskHighPriority(false);
                 }}
                 style={{ padding: "0.5rem 1rem", fontSize: "0.8125rem" }}
               >
@@ -917,19 +1081,86 @@ function TaskDashboard() {
             </div>
           </div>
         ) : (
+          <>
+            <button
+              className="btn-primary animate-fade-in"
+              onClick={() => setIsAdding(true)}
+              style={{
+                width: "100%",
+                marginBottom: "0.5rem",
+                padding: "0.875rem",
+              }}
+            >
+              <Plus size={20} />
+              Add New Task
+            </button>
+            <p
+              style={{
+                textAlign: "center",
+                marginBottom: "1rem",
+                fontWeight: 700,
+                letterSpacing: "0.03em",
+                fontSize: "0.95rem",
+                background:
+                  "linear-gradient(90deg, #f9a8d4, #c4b5fd 45%, #93c5fd 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              Get things done
+            </p>
+          </>
+        )}
+
+        {/* Filters */}
+        <div
+          className="glass animate-fade-in"
+          style={{
+            marginBottom: "1rem",
+            padding: "0.75rem",
+            display: "flex",
+            gap: "0.5rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ position: "relative", flex: "1 1 220px" }}>
+            <Search
+              size={16}
+              style={{
+                position: "absolute",
+                left: "0.75rem",
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--text-muted)",
+              }}
+            />
+            <input
+              className="input-field"
+              type="text"
+              placeholder="Search tasks"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              style={{ paddingLeft: "2.2rem" }}
+            />
+          </div>
           <button
-            className="btn-primary animate-fade-in"
-            onClick={() => setIsAdding(true)}
+            type="button"
+            className="btn-ghost"
+            onClick={() => setShowHighPriorityOnly((prev) => !prev)}
             style={{
-              width: "100%",
-              marginBottom: "1rem",
-              padding: "0.875rem",
+              borderColor: showHighPriorityOnly ? "#a78bfa" : undefined,
+              color: showHighPriorityOnly ? "#c4b5fd" : undefined,
+              background: showHighPriorityOnly
+                ? "rgba(167, 139, 250, 0.12)"
+                : undefined,
+              padding: "0.625rem 0.875rem",
             }}
           >
-            <Plus size={20} />
-            Add New Task
+            <Flame size={16} />
+            High Priority
           </button>
-        )}
+        </div>
 
         {/* Task List */}
         <div style={{ flex: 1 }}>
@@ -966,6 +1197,23 @@ function TaskDashboard() {
                 Tap the button above to add your first task
               </p>
             </div>
+          ) : filteredTasks.length === 0 ? (
+            <div className="empty-state animate-fade-in">
+              <ListTodo size={64} strokeWidth={1} />
+              <h3
+                style={{
+                  fontSize: "1.125rem",
+                  fontWeight: 600,
+                  color: "var(--text-secondary)",
+                  marginBottom: "0.25rem",
+                }}
+              >
+                No matching tasks
+              </h3>
+              <p style={{ fontSize: "0.875rem" }}>
+                Try a different search or disable the high-priority filter
+              </p>
+            </div>
           ) : (
             <div
               style={{
@@ -974,7 +1222,7 @@ function TaskDashboard() {
                 gap: "0.5rem",
               }}
             >
-              {tasks
+              {filteredTasks
                 .filter((t) => !t.isCompleted)
                 .map((task) => (
                   <TaskItem
@@ -982,10 +1230,14 @@ function TaskDashboard() {
                     task={task}
                     onToggle={() => toggleTask({ taskId: task._id })}
                     onDelete={() => deleteTask({ taskId: task._id })}
+                    onEdit={(text) => handleEditTask(task._id, text)}
+                    onTogglePriority={() =>
+                      togglePriorityTask({ taskId: task._id })
+                    }
                   />
                 ))}
 
-              {completedCount > 0 && pendingCount > 0 && (
+              {filteredCompletedCount > 0 && filteredPendingCount > 0 && (
                 <div
                   style={{
                     display: "flex",
@@ -1012,7 +1264,7 @@ function TaskDashboard() {
                     }}
                   >
                     <CircleCheckBig size={12} />
-                    Completed ({completedCount})
+                    Completed ({filteredCompletedCount})
                   </span>
                   <div
                     style={{
@@ -1024,7 +1276,7 @@ function TaskDashboard() {
                 </div>
               )}
 
-              {tasks
+              {filteredTasks
                 .filter((t) => t.isCompleted)
                 .map((task) => (
                   <TaskItem
@@ -1032,6 +1284,10 @@ function TaskDashboard() {
                     task={task}
                     onToggle={() => toggleTask({ taskId: task._id })}
                     onDelete={() => deleteTask({ taskId: task._id })}
+                    onEdit={(text) => handleEditTask(task._id, text)}
+                    onTogglePriority={() =>
+                      togglePriorityTask({ taskId: task._id })
+                    }
                   />
                 ))}
             </div>
@@ -1067,21 +1323,53 @@ function TaskItem({
   task,
   onToggle,
   onDelete,
+  onEdit,
+  onTogglePriority,
 }: {
   task: {
     _id: Id<"tasks">;
     text: string;
     isCompleted: boolean;
     createdAt: number;
+    isHighPriority?: boolean;
   };
   onToggle: () => void;
   onDelete: () => void;
+  onEdit: (text: string) => void;
+  onTogglePriority: () => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftText, setDraftText] = useState(task.text);
+
   const timeAgo = getTimeAgo(task.createdAt);
+  const dateColor = getTaskDateColor(task.createdAt);
+  const highPriority = Boolean(task.isHighPriority);
+
+  const handleSaveEdit = async () => {
+    if (!draftText.trim()) return;
+    await onEdit(draftText);
+    setIsEditing(false);
+  };
 
   return (
-    <div
+    <motion.div
       className={`task-card task-item ${task.isCompleted ? "completed" : ""}`}
+      animate={
+        highPriority
+          ? {
+              borderColor: ["rgba(196, 181, 253, 0.45)", "rgba(196, 181, 253, 1)", "rgba(196, 181, 253, 0.45)"],
+              boxShadow: [
+                "0 0 0 rgba(167, 139, 250, 0)",
+                "0 0 18px rgba(167, 139, 250, 0.35)",
+                "0 0 0 rgba(167, 139, 250, 0)",
+              ],
+            }
+          : {
+              borderColor: "var(--glass-border)",
+              boxShadow: "none",
+            }
+      }
+      transition={highPriority ? { duration: 1.8, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
     >
       <button
         className={`checkbox-custom ${task.isCompleted ? "checked" : ""}`}
@@ -1092,22 +1380,48 @@ function TaskItem({
       </button>
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p
-          className="task-text"
-          style={{
-            fontSize: "0.9375rem",
-            fontWeight: 500,
-            margin: 0,
-            lineHeight: 1.4,
-            wordBreak: "break-word",
-          }}
-        >
-          {task.text}
-        </p>
+        {isEditing ? (
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <input
+              className="input-field"
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  void handleSaveEdit();
+                }
+              }}
+              style={{ padding: "0.45rem 0.65rem", fontSize: "0.875rem" }}
+              autoFocus
+            />
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => void handleSaveEdit()}
+              style={{ padding: "0.45rem 0.7rem", fontSize: "0.75rem" }}
+            >
+              Save
+            </button>
+          </div>
+        ) : (
+          <p
+            className="task-text"
+            style={{
+              fontSize: "0.9375rem",
+              fontWeight: 500,
+              margin: 0,
+              lineHeight: 1.4,
+              wordBreak: "break-word",
+            }}
+          >
+            {task.text}
+          </p>
+        )}
         <p
           style={{
             fontSize: "0.6875rem",
             color: "var(--text-muted)",
+            fontWeight: 700,
             margin: "0.125rem 0 0",
             display: "flex",
             alignItems: "center",
@@ -1115,18 +1429,65 @@ function TaskItem({
           }}
         >
           <Clock size={10} />
-          {timeAgo} · {formatDate(task.createdAt)}
+          {timeAgo} · <span style={{ color: dateColor }}>{formatDate(task.createdAt)}</span>
         </p>
       </div>
 
       <button
-        className="btn-danger"
-        onClick={onDelete}
-        aria-label="Delete task"
+        type="button"
+        className="btn-ghost"
+        onClick={onTogglePriority}
+        aria-label={highPriority ? "Remove high priority" : "Mark high priority"}
+        style={{
+          padding: "0.4rem",
+          minWidth: "unset",
+          color: highPriority ? "#c4b5fd" : "var(--text-muted)",
+          borderColor: highPriority ? "rgba(196, 181, 253, 0.6)" : "var(--border)",
+        }}
       >
-        <Trash2 size={16} />
+        <Flame size={15} />
       </button>
-    </div>
+
+      <button
+        type="button"
+        className="btn-ghost"
+        onClick={() => {
+          setDraftText(task.text);
+          setIsEditing((prev) => !prev);
+        }}
+        aria-label={isEditing ? "Cancel edit" : "Edit task"}
+        style={{ padding: "0.4rem", minWidth: "unset" }}
+      >
+        <Pencil size={15} />
+      </button>
+
+      <AlertDialog>
+        <AlertDialogTrigger
+          className="btn-danger"
+          aria-label="Delete task"
+        >
+          <Trash2 size={16} />
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Task</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>&ldquo;{task.text}&rdquo;</strong>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              className="bg-red-600 text-white hover:bg-red-700"
+              onClick={onDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </motion.div>
   );
 }
 
@@ -1160,6 +1521,15 @@ function formatDate(timestamp: number): string {
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
   ];
   return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function getTaskDateColor(timestamp: number): string {
+  const ageInDays = Math.floor(
+    (new Date().getTime() - timestamp) / (1000 * 60 * 60 * 24)
+  );
+  if (ageInDays > 30) return "#f87171";
+  if (ageInDays > 15) return "#facc15";
+  return "var(--text-secondary)";
 }
 
 // ─── Main Page ─────────────────────────────────────────────

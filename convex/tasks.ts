@@ -18,12 +18,14 @@ export const create = mutation({
   args: {
     userId: v.id("users"),
     text: v.string(),
+    isHighPriority: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("tasks", {
       userId: args.userId,
       text: args.text,
       isCompleted: false,
+      isHighPriority: args.isHighPriority ?? false,
       createdAt: Date.now(),
     });
   },
@@ -43,10 +45,30 @@ export const toggleComplete = mutation({
 export const update = mutation({
   args: {
     taskId: v.id("tasks"),
-    text: v.string(),
+    text: v.optional(v.string()),
+    isHighPriority: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.taskId, { text: args.text });
+    const patch: { text?: string; isHighPriority?: boolean } = {};
+    if (typeof args.text === "string") {
+      patch.text = args.text;
+    }
+    if (typeof args.isHighPriority === "boolean") {
+      patch.isHighPriority = args.isHighPriority;
+    }
+    await ctx.db.patch(args.taskId, patch);
+  },
+});
+
+// Toggle task priority
+export const togglePriority = mutation({
+  args: { taskId: v.id("tasks") },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+    await ctx.db.patch(args.taskId, {
+      isHighPriority: !task.isHighPriority,
+    });
   },
 });
 

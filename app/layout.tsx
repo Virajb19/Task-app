@@ -4,8 +4,9 @@ import "./globals.css";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import NextAuthProvider from "./SessionProvider";
 import { cn } from "@/lib/utils";
+import { Toaster } from "sonner";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
 const inter = Inter({
   variable: "--font-geist-sans",
@@ -37,6 +38,21 @@ export default function RootLayout({
         <NextAuthProvider>
           <ConvexClientProvider>{children}</ConvexClientProvider>
         </NextAuthProvider>
+        <Toaster
+          theme="dark"
+          position="bottom-right"
+          richColors
+          expand={false}
+          duration={3000}
+          toastOptions={{
+            style: {
+              background: "rgba(20, 20, 32, 0.95)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              color: "#e8e8f0",
+              backdropFilter: "blur(20px)",
+            },
+          }}
+        />
       </body>
     </html>
   );
