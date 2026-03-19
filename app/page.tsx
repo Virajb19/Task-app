@@ -28,18 +28,14 @@ import {
   Search,
   Pencil,
   Flame,
+  MoreHorizontal,
 } from "lucide-react";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // ─── Camera Capture Component ──────────────────────────────
 function CameraCapture({
@@ -937,7 +933,13 @@ function TaskDashboard() {
           <button
             className="btn-ghost"
             onClick={() => signOut()}
-            style={{ padding: "0.5rem 1rem", fontSize: "0.8125rem" }}
+            style={{
+              padding: "0.5rem 1rem",
+              fontSize: "0.8125rem",
+              color: "#fca5a5",
+              borderColor: "rgba(248, 113, 113, 0.45)",
+              background: "rgba(248, 113, 113, 0.08)",
+            }}
           >
             <LogOut size={16} />
             Sign Out
@@ -1100,7 +1102,7 @@ function TaskDashboard() {
                 marginBottom: "1rem",
                 fontWeight: 700,
                 letterSpacing: "0.03em",
-                fontSize: "0.95rem",
+                fontSize: "1.1rem",
                 background:
                   "linear-gradient(90deg, #f9a8d4, #c4b5fd 45%, #93c5fd 100%)",
                 WebkitBackgroundClip: "text",
@@ -1340,6 +1342,7 @@ function TaskItem({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftText, setDraftText] = useState(task.text);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const timeAgo = getTimeAgo(task.createdAt);
   const dateColor = getTaskDateColor(task.createdAt);
@@ -1435,7 +1438,7 @@ function TaskItem({
 
       <button
         type="button"
-        className="btn-ghost"
+        className="btn-ghost hidden sm:inline-flex"
         onClick={onTogglePriority}
         aria-label={highPriority ? "Remove high priority" : "Mark high priority"}
         style={{
@@ -1450,7 +1453,7 @@ function TaskItem({
 
       <button
         type="button"
-        className="btn-ghost"
+        className="btn-ghost hidden sm:inline-flex"
         onClick={() => {
           setDraftText(task.text);
           setIsEditing((prev) => !prev);
@@ -1461,32 +1464,134 @@ function TaskItem({
         <Pencil size={15} />
       </button>
 
-      <AlertDialog>
-        <AlertDialogTrigger
-          className="btn-danger"
-          aria-label="Delete task"
-        >
-          <Trash2 size={16} />
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Task</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete <strong>&ldquo;{task.text}&rdquo;</strong>? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              className="bg-red-600 text-white hover:bg-red-700"
-              onClick={onDelete}
+      <button
+        type="button"
+        className="btn-danger hidden sm:inline-flex"
+        aria-label="Delete task"
+        onClick={() => setIsDeleteDialogOpen(true)}
+      >
+        <Trash2 size={16} />
+      </button>
+
+      <div className="sm:hidden">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="btn-ghost"
+            aria-label="Task options"
+            style={{
+              padding: "0.35rem",
+              minWidth: "unset",
+              width: "32px",
+              height: "32px",
+              background: "#18181b",
+              borderColor: "#3f3f46",
+              color: "#f4f4f5",
+            }}
+          >
+            <MoreHorizontal size={16} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={onTogglePriority}>
+              <Flame size={14} />
+              {highPriority ? "Remove Priority" : "Mark Priority"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                setDraftText(task.text);
+                setIsEditing((prev) => !prev);
+              }}
             >
+              <Pencil size={14} />
+              {isEditing ? "Cancel Edit" : "Edit"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setIsDeleteDialogOpen(true)}
+              className="text-[#fca5a5]"
+            >
+              <Trash2 size={14} />
               Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {isDeleteDialogOpen && (
+        <div
+          onClick={() => setIsDeleteDialogOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 120,
+            background: "rgba(0, 0, 0, 0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: "360px",
+              borderRadius: "0.9rem",
+              border: "1px solid #3f3f46",
+              background: "#18181b",
+              color: "#f4f4f5",
+              padding: "1rem",
+              boxShadow: "0 8px 30px rgba(0,0,0,0.45)",
+            }}
+          >
+            <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>
+              Delete Task
+            </h3>
+            <p
+              style={{
+                marginTop: "0.5rem",
+                marginBottom: "1rem",
+                color: "#d4d4d8",
+                fontSize: "0.875rem",
+                lineHeight: 1.45,
+              }}
+            >
+              Are you sure you want to delete <strong>&ldquo;{task.text}&rdquo;</strong>? This action cannot be undone.
+            </p>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "0.5rem",
+              }}
+            >
+              <button
+                type="button"
+                className="btn-ghost"
+                style={{ padding: "0.45rem 0.8rem", fontSize: "0.8125rem" }}
+                onClick={() => setIsDeleteDialogOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                style={{
+                  opacity: 1,
+                  background: "#dc2626",
+                  color: "#fff",
+                  padding: "0.45rem 0.8rem",
+                  fontSize: "0.8125rem",
+                }}
+                onClick={() => {
+                  onDelete();
+                  setIsDeleteDialogOpen(false);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
