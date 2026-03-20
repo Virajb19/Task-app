@@ -67,10 +67,11 @@ export function TaskItem({
     setIsMobileMenuOpen(false);
   };
 
+  const highPriority = Boolean(task.isHighPriority);
+
   const timeAgo = getTimeAgo(task.createdAt);
   const dateColor = getTaskDateColor(task.createdAt);
-  const ageToneStyle = getTaskAgeToneStyle(task.createdAt);
-  const highPriority = Boolean(task.isHighPriority);
+  const ageToneStyle = getTaskAgeToneStyle(task.createdAt, highPriority);
 
   const handleSaveEdit = async () => {
     if (!draftText.trim()) return;
@@ -322,7 +323,7 @@ function getTaskDateColor(timestamp: number): string {
   return "var(--text-secondary)";
 }
 
-function getTaskAgeToneStyle(timestamp: number): React.CSSProperties | undefined {
+function getTaskAgeToneStyle(timestamp: number, highPriority: boolean): React.CSSProperties | undefined {
   if (!Number.isFinite(timestamp)) {
     return undefined;
   }
@@ -336,6 +337,12 @@ function getTaskAgeToneStyle(timestamp: number): React.CSSProperties | undefined
 
   if (ageMs >= 3 * dayMs) {
     return { backgroundColor: "rgba(250, 204, 21, 0.15)" };
+  }
+
+  if (highPriority) {
+    return {
+      backgroundColor: "rgba(60, 46, 116, 0.5)", 
+    };
   }
 
   return undefined;
