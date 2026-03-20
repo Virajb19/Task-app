@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { twMerge } from "tailwind-merge";
 
 type TaskItemProps = {
   task: {
@@ -81,7 +82,7 @@ export function TaskItem({
 
   return (
     <motion.div
-      className={cn(
+      className={twMerge(
         "task-card task-item",
         task.isCompleted && "completed",
         highPriority && "ring-2 ring-violet-300/50"
@@ -331,18 +332,18 @@ function getTaskAgeToneStyle(timestamp: number, highPriority: boolean): React.CS
   const dayMs = 24 * 60 * 60 * 1000;
   const ageMs = Date.now() - timestamp;
 
+  if (highPriority) {
+    return {
+      backgroundColor: "rgba(60, 46, 116, 0.5)",
+    };
+  }
+
   if (ageMs >= 7 * dayMs) {
     return { backgroundColor: "rgba(239, 68, 68, 0.15)" };
   }
 
   if (ageMs >= 3 * dayMs) {
     return { backgroundColor: "rgba(250, 204, 21, 0.15)" };
-  }
-
-  if (highPriority) {
-    return {
-      backgroundColor: "rgba(60, 46, 116, 0.5)", 
-    };
   }
 
   return undefined;
