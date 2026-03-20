@@ -90,14 +90,12 @@ export function TaskItem({
         highPriority
           ? {
               borderColor: [
-                "rgba(196, 181, 253, 0.65)",
+                "rgba(196, 181, 253, 0.6)",
                 "rgba(196, 181, 253, 1)",
-                "rgba(196, 181, 253, 0.65)",
               ],
               boxShadow: [
-                "0 0 0 rgba(167, 139, 250, 0)",
-                "0 0 24px rgba(167, 139, 250, 0.45)",
-                "0 0 0 rgba(167, 139, 250, 0)",
+                "0 0 8px rgba(167, 139, 250, 0.18)",
+                "0 0 26px rgba(167, 139, 250, 0.5)",
               ],
             }
           : {
@@ -107,7 +105,7 @@ export function TaskItem({
       }
       transition={
         highPriority
-          ? { duration: 1.8, repeat: Infinity, ease: "easeInOut" }
+          ? { duration: 0.6, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }
           : { duration: 0.2 }
       }
     >

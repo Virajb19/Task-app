@@ -11,6 +11,7 @@ import {
   LogOut,
   Plus,
   Search,
+  X,
 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -396,8 +397,31 @@ export function TaskDashboard() {
               placeholder="Search tasks"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              style={{ paddingLeft: "2.2rem" }}
+              style={{ paddingLeft: "2.5rem", paddingRight: searchText ? "2.2rem" : undefined }}
             />
+            {searchText.trim().length > 0 && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setSearchText("")}
+                style={{
+                  position: "absolute",
+                  right: "0.55rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  color: "#f87171",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 0,
+                }}
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
           <button
             type="button"
