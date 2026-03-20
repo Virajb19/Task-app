@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { Camera, RefreshCw, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function CameraCapture({
   onCapture,
@@ -84,49 +85,19 @@ export function CameraCapture({
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
       {isCameraOpen ? (
-        <div
-          className="animate-fade-in"
-          style={{
-            position: "relative",
-            width: "100%",
-            borderRadius: "1rem",
-            overflow: "hidden",
-            background: "#000",
-          }}
-        >
+        <div className="relative w-full overflow-hidden rounded-2xl bg-black animate-fade-in">
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            style={{
-              width: "100%",
-              aspectRatio: "1",
-              objectFit: "cover",
-              display: "block",
-            }}
+            className="block aspect-square w-full object-cover"
           />
-          <div
-            style={{
-              position: "absolute",
-              bottom: "1rem",
-              left: 0,
-              right: 0,
-              display: "flex",
-              justifyContent: "center",
-              gap: "1rem",
-            }}
-          >
+          <div className="absolute inset-x-0 bottom-4 flex justify-center gap-4">
             <button
               type="button"
               onClick={closeCamera}
-              className="btn-ghost"
-              style={{
-                padding: "0.5rem 1rem",
-                fontSize: "0.8125rem",
-                background: "rgba(0,0,0,0.5)",
-                backdropFilter: "blur(10px)",
-              }}
+              className="btn-ghost bg-black/50 px-4 py-2 text-[0.8125rem] backdrop-blur"
             >
               <X size={16} />
               Cancel
@@ -134,11 +105,7 @@ export function CameraCapture({
             <button
               type="button"
               onClick={takePhoto}
-              className="btn-primary"
-              style={{
-                padding: "0.75rem 1.5rem",
-                borderRadius: "2rem",
-              }}
+              className="btn-primary rounded-full px-6 py-3"
             >
               <Camera size={18} />
               Capture
@@ -149,64 +116,26 @@ export function CameraCapture({
         <button
           type="button"
           onClick={openCamera}
-          style={{
-            width: "100px",
-            height: "100px",
-            borderRadius: "50%",
-            border: "2px dashed var(--border-light)",
-            background: currentPreview ? "none" : "var(--surface)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            overflow: "hidden",
-            transition: "all 0.2s ease",
-            position: "relative",
-          }}
+          className={cn(
+            "group relative flex h-25 w-25 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-white/15 transition-all duration-200",
+            currentPreview ? "bg-transparent" : "bg-white/5"
+          )}
         >
           {currentPreview ? (
             <>
               <img
                 src={currentPreview}
                 alt="Profile"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                }}
+                className="h-full w-full object-cover"
               />
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: "rgba(0,0,0,0.4)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  opacity: 0,
-                  transition: "opacity 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.target as HTMLElement).style.opacity = "1";
-                }}
-                onMouseLeave={(e) => {
-                  (e.target as HTMLElement).style.opacity = "0";
-                }}
-              >
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                 <RefreshCw size={20} color="white" />
               </div>
             </>
           ) : (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "0.25rem",
-              }}
-            >
+            <div className="flex flex-col items-center gap-1">
               <Camera size={24} color="var(--text-muted)" />
-              <span style={{ fontSize: "0.625rem", color: "var(--text-muted)" }}>
+              <span className="text-[0.625rem] text-(--text-muted)">
                 Photo
               </span>
             </div>

@@ -105,6 +105,9 @@ export function TaskDashboard() {
   const completedCount = tasks?.filter((task) => task.isCompleted).length ?? 0;
   const totalCount = tasks?.length ?? 0;
   const pendingCount = totalCount - completedCount;
+  const highPriorityCount =
+    tasks?.filter((task) => Boolean((task as { isHighPriority?: boolean }).isHighPriority))
+      .length ?? 0;
   const filteredTasks = (tasks ?? []).filter((task) => {
     const matchesSearch = task.text
       .toLowerCase()
@@ -213,6 +216,20 @@ export function TaskDashboard() {
                 {pendingCount}
               </span>
               <span className="stat-label">Pending</span>
+            </div>
+            <div className="stat-item">
+              <span
+                className="stat-value"
+                style={{
+                  background: "linear-gradient(135deg, #f97316, #facc15)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
+                {highPriorityCount}
+              </span>
+              <span className="stat-label">High</span>
             </div>
             {totalCount > 0 && (
               <div className="stat-item" style={{ marginLeft: "auto" }}>
@@ -407,7 +424,7 @@ export function TaskDashboard() {
                 gap: "0.5rem",
               }}
             >
-              {[1, 2, 3].map((index) => (
+              {Array.from({ length: 10 }, (_, idx) => idx + 1).map((index) => (
                 <div key={index} className="skeleton" style={{ height: "60px", width: "100%" }} />
               ))}
             </div>

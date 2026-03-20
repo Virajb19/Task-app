@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type TaskItemProps = {
   task: {
@@ -68,6 +69,7 @@ export function TaskItem({
 
   const timeAgo = getTimeAgo(task.createdAt);
   const dateColor = getTaskDateColor(task.createdAt);
+  const ageToneClass = getTaskAgeToneClass(task.createdAt);
   const highPriority = Boolean(task.isHighPriority);
 
   const handleSaveEdit = async () => {
@@ -78,20 +80,26 @@ export function TaskItem({
 
   return (
     <motion.div
-      className={`task-card task-item ${task.isCompleted ? "completed" : ""}`}
+      className={cn(
+        "task-card task-item",
+        task.isCompleted && "completed",
+        ageToneClass,
+        highPriority && "border-2"
+      )}
       animate={
         highPriority
           ? {
               borderColor: [
-                "rgba(196, 181, 253, 0.45)",
+                "rgba(196, 181, 253, 0.65)",
                 "rgba(196, 181, 253, 1)",
-                "rgba(196, 181, 253, 0.45)",
+                "rgba(196, 181, 253, 0.65)",
               ],
               boxShadow: [
                 "0 0 0 rgba(167, 139, 250, 0)",
-                "0 0 18px rgba(167, 139, 250, 0.35)",
+                "0 0 24px rgba(167, 139, 250, 0.45)",
                 "0 0 0 rgba(167, 139, 250, 0)",
               ],
+              borderWidth: "2px",
             }
           : {
               borderColor: "var(--glass-border)",
@@ -112,11 +120,11 @@ export function TaskItem({
         {task.isCompleted && <Check size={14} color="white" strokeWidth={3} />}
       </button>
 
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="min-w-0 flex-1">
         {isEditing ? (
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <div className="flex items-center gap-2">
             <input
-              className="input-field"
+              className="input-field px-[0.65rem] py-[0.45rem] text-sm"
               value={draftText}
               onChange={(e) => setDraftText(e.target.value)}
               onKeyDown={(e) => {
@@ -124,43 +132,22 @@ export function TaskItem({
                   void handleSaveEdit();
                 }
               }}
-              style={{ padding: "0.45rem 0.65rem", fontSize: "0.875rem" }}
               autoFocus
             />
             <button
               type="button"
-              className="btn-primary"
+              className="btn-primary px-[0.7rem] py-[0.45rem] text-xs"
               onClick={() => void handleSaveEdit()}
-              style={{ padding: "0.45rem 0.7rem", fontSize: "0.75rem" }}
             >
               Save
             </button>
           </div>
         ) : (
-          <p
-            className="task-text"
-            style={{
-              fontSize: "0.9375rem",
-              fontWeight: 500,
-              margin: 0,
-              lineHeight: 1.4,
-              wordBreak: "break-word",
-            }}
-          >
+          <p className="task-text m-0 wrap-break-word text-[0.9375rem] font-medium leading-[1.4]">
             {task.text}
           </p>
         )}
-        <p
-          style={{
-            fontSize: "0.6875rem",
-            color: "var(--text-muted)",
-            fontWeight: 700,
-            margin: "0.125rem 0 0",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.25rem",
-          }}
-        >
+        <p className="mt-0.5 flex items-center gap-1 text-[0.6875rem] font-bold text-(--text-muted)">
           <Clock size={10} />
           {timeAgo} · <span style={{ color: dateColor }}>{formatDate(task.createdAt)}</span>
         </p>
@@ -170,27 +157,23 @@ export function TaskItem({
         <>
           <button
             type="button"
-            className="btn-ghost"
             onClick={togglePriority}
             aria-label={highPriority ? "Remove high priority" : "Mark high priority"}
-            style={{
-              padding: "0.4rem",
-              minWidth: "unset",
-              color: highPriority ? "#c4b5fd" : "var(--text-muted)",
-              borderColor: highPriority
-                ? "rgba(196, 181, 253, 0.6)"
-                : "var(--border)",
-            }}
+            className={cn(
+              "btn-ghost min-w-0 p-[0.4rem]",
+              highPriority
+                ? "border-[rgba(196,181,253,0.6)] text-[#c4b5fd]"
+                : "text-(--text-muted)"
+            )}
           >
             <Flame size={15} />
           </button>
 
           <button
             type="button"
-            className="btn-ghost"
             onClick={toggleEdit}
             aria-label={isEditing ? "Cancel edit" : "Edit task"}
-            style={{ padding: "0.4rem", minWidth: "unset" }}
+            className="btn-ghost min-w-0 p-[0.4rem]"
           >
             <Pencil size={15} />
           </button>
@@ -207,17 +190,8 @@ export function TaskItem({
       ) : (
         <DropdownMenu open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <DropdownMenuTrigger
-            className="btn-ghost"
             aria-label="Task options"
-            style={{
-              padding: "0.35rem",
-              minWidth: "unset",
-              width: "32px",
-              height: "32px",
-              background: "#18181b",
-              borderColor: "#3f3f46",
-              color: "#f4f4f5",
-            }}
+            className="btn-ghost h-8 w-8 min-w-0 border-zinc-700 bg-zinc-900 p-[0.35rem] text-zinc-100"
           >
             <MoreHorizontal size={16} />
           </DropdownMenuTrigger>
@@ -332,7 +306,20 @@ function getTaskDateColor(timestamp: number): string {
   const dayMs = 24 * 60 * 60 * 1000;
   const ageMs = Date.now() - timestamp;
 
-  if (ageMs >= 30 * dayMs) return "#f87171";
-  if (ageMs >= 15 * dayMs) return "#facc15";
+  if (ageMs >= 10 * dayMs) return "#f87171";
+  if (ageMs >= 7 * dayMs) return "#facc15";
   return "var(--text-secondary)";
+}
+
+function getTaskAgeToneClass(timestamp: number): string {
+  if (!Number.isFinite(timestamp)) {
+    return "";
+  }
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  const ageMs = Date.now() - timestamp;
+
+  if (ageMs >= 10 * dayMs) return "bg-red-500/15";
+  if (ageMs >= 7 * dayMs) return "bg-yellow-400/15";
+  return "";
 }
