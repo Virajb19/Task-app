@@ -219,7 +219,7 @@ export function TaskDashboard() {
             </div>
             <div className="stat-item hidden md:flex">
               <span
-                className="stat-value"
+                className="stat-value hidden md:inline-block"
                 style={{
                   background: "linear-gradient(135deg, #f97316, #facc15)",
                   WebkitBackgroundClip: "text",
@@ -229,7 +229,7 @@ export function TaskDashboard() {
               >
                 {highPriorityCount}
               </span>
-              <span className="stat-label">High</span>
+              <span className="stat-label hidden md:inline-block">High</span>
             </div>
             {totalCount > 0 && (
               <div className="stat-item" style={{ marginLeft: "auto" }}>
@@ -414,7 +414,7 @@ export function TaskDashboard() {
             High Priority
           </button>
           <span
-            className="inline-flex items-center rounded-md border border-amber-300/45 bg-amber-300/15 px-2.5 py-1 text-xs font-semibold text-amber-200 md:hidden"
+            className="inline-flex self-center h-8 min-w-8 items-center justify-center rounded-full border-2 border-violet-300/60 bg-violet-500/30 px-2.5 text-xs font-semibold text-violet-100 md:hidden"
           >
             {highPriorityCount}
           </span>

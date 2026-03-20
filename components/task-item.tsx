@@ -69,7 +69,7 @@ export function TaskItem({
 
   const timeAgo = getTimeAgo(task.createdAt);
   const dateColor = getTaskDateColor(task.createdAt);
-  const ageToneClass = getTaskAgeToneClass(task.createdAt);
+  const ageToneStyle = getTaskAgeToneStyle(task.createdAt);
   const highPriority = Boolean(task.isHighPriority);
 
   const handleSaveEdit = async () => {
@@ -83,9 +83,9 @@ export function TaskItem({
       className={cn(
         "task-card task-item",
         task.isCompleted && "completed",
-        ageToneClass,
-        highPriority && "ring-1 ring-violet-300/50"
+        highPriority && "ring-2 ring-violet-300/50"
       )}
+      style={ageToneStyle}
       animate={
         highPriority
           ? {
@@ -189,10 +189,24 @@ export function TaskItem({
       ) : (
         <DropdownMenu open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <DropdownMenuTrigger
+            type="button"
             aria-label="Task options"
-            className="btn-ghost h-8 w-8 min-w-0 border-zinc-700 bg-zinc-900 p-[0.35rem] text-zinc-100 opacity-100"
+            className="btn-ghost"
+            style={{
+              display: "inline-flex",
+              width: "32px",
+              height: "32px",
+              minWidth: "32px",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "0.35rem",
+              borderColor: "#3f3f46",
+              background: "#18181b",
+              color: "#f4f4f5",
+              opacity: 1,
+            }}
           >
-            <MoreHorizontal size={16} color="#f4f4f5" />
+            <MoreHorizontal size={16} className="text-current" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
@@ -305,20 +319,26 @@ function getTaskDateColor(timestamp: number): string {
   const dayMs = 24 * 60 * 60 * 1000;
   const ageMs = Date.now() - timestamp;
 
-  if (ageMs >= 10 * dayMs) return "#f87171";
-  if (ageMs >= 7 * dayMs) return "#facc15";
+  if (ageMs >= 7 * dayMs) return "#f87171";
+  if (ageMs >= 3 * dayMs) return "#facc15";
   return "var(--text-secondary)";
 }
 
-function getTaskAgeToneClass(timestamp: number): string {
+function getTaskAgeToneStyle(timestamp: number): React.CSSProperties | undefined {
   if (!Number.isFinite(timestamp)) {
-    return "";
+    return undefined;
   }
 
   const dayMs = 24 * 60 * 60 * 1000;
   const ageMs = Date.now() - timestamp;
 
-  if (ageMs >= 10 * dayMs) return "bg-red-500/15";
-  if (ageMs >= 7 * dayMs) return "bg-yellow-400/15";
-  return "";
+  if (ageMs >= 7 * dayMs) {
+    return { backgroundColor: "rgba(239, 68, 68, 0.15)" };
+  }
+
+  if (ageMs >= 3 * dayMs) {
+    return { backgroundColor: "rgba(250, 204, 21, 0.15)" };
+  }
+
+  return undefined;
 }
