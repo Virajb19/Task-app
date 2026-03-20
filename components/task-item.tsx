@@ -106,7 +106,7 @@ export function TaskItem({
       }
       transition={
         highPriority
-          ? { duration: 0.8, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }
+          ? { duration: 1, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }
           : { duration: 0.2 }
       }
     >
