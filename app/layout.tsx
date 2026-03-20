@@ -18,7 +18,7 @@ const lato = Lato({
 });
 
 export const metadata: Metadata = {
-  title: "TaskFlow — Smart Task Manager",
+  title: "TaskFlow",
   description:
     "A beautiful and secure task management app powered by Convex.",
   icons: {
