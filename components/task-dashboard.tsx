@@ -217,7 +217,7 @@ export function TaskDashboard() {
               </span>
               <span className="stat-label">Pending</span>
             </div>
-            <div className="stat-item">
+            <div className="stat-item hidden md:flex">
               <span
                 className="stat-value"
                 style={{
@@ -413,6 +413,11 @@ export function TaskDashboard() {
             <Flame size={16} />
             High Priority
           </button>
+          <span
+            className="inline-flex items-center rounded-md border border-amber-300/45 bg-amber-300/15 px-2.5 py-1 text-xs font-semibold text-amber-200 md:hidden"
+          >
+            {highPriorityCount}
+          </span>
         </div>
 
         <div style={{ flex: 1 }}>

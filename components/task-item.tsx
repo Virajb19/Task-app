@@ -84,7 +84,7 @@ export function TaskItem({
         "task-card task-item",
         task.isCompleted && "completed",
         ageToneClass,
-        highPriority && "border-2"
+        highPriority && "ring-1 ring-violet-300/50"
       )}
       animate={
         highPriority
@@ -99,7 +99,6 @@ export function TaskItem({
                 "0 0 24px rgba(167, 139, 250, 0.45)",
                 "0 0 0 rgba(167, 139, 250, 0)",
               ],
-              borderWidth: "2px",
             }
           : {
               borderColor: "var(--glass-border)",
@@ -191,9 +190,9 @@ export function TaskItem({
         <DropdownMenu open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <DropdownMenuTrigger
             aria-label="Task options"
-            className="btn-ghost h-8 w-8 min-w-0 border-zinc-700 bg-zinc-900 p-[0.35rem] text-zinc-100"
+            className="btn-ghost h-8 w-8 min-w-0 border-zinc-700 bg-zinc-900 p-[0.35rem] text-zinc-100 opacity-100"
           >
-            <MoreHorizontal size={16} />
+            <MoreHorizontal size={16} color="#f4f4f5" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
