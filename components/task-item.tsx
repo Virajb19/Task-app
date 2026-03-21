@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useMediaQuery } from "usehooks-ts";
 import { Check, Clock, Flame, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
@@ -52,6 +52,17 @@ export function TaskItem({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Optimistic toggle – flip UI immediately, let mutation run in background
+  const [optimisticCompleted, setOptimisticCompleted] = useState(task.isCompleted);
+  useEffect(() => {
+    setOptimisticCompleted(task.isCompleted);
+  }, [task.isCompleted]);
+
+  const handleToggle = () => {
+    setOptimisticCompleted((prev) => !prev);
+    void onToggle();
+  };
+
   const toggleEdit = () => {
     setDraftText(task.text);
     setIsEditing((prev) => !prev);
@@ -84,25 +95,25 @@ export function TaskItem({
     <motion.div
       className={twMerge(
         "task-card task-item",
-        task.isCompleted && "completed",
+        optimisticCompleted && "completed",
         highPriority && "ring-2 ring-violet-300/50"
       )}
       style={ageToneStyle}
       animate={
         highPriority
           ? {
-              borderColor: [
-                "rgba(196, 181, 253, 0.6)",
-                "rgba(196, 181, 253, 1)",
-              ],
-              boxShadow: [
-                "0 0 8px rgba(167, 139, 250, 0.18)",
-                "0 0 26px rgba(167, 139, 250, 0.5)",
-              ],
-            }
+            borderColor: [
+              "rgba(196, 181, 253, 0.6)",
+              "rgba(196, 181, 253, 1)",
+            ],
+            boxShadow: [
+              "0 0 8px rgba(167, 139, 250, 0.18)",
+              "0 0 26px rgba(167, 139, 250, 0.5)",
+            ],
+          }
           : {
-              boxShadow: "none",
-            }
+            boxShadow: "none",
+          }
       }
       transition={
         highPriority
@@ -111,11 +122,11 @@ export function TaskItem({
       }
     >
       <button
-        className={`checkbox-custom ${task.isCompleted ? "checked" : ""}`}
-        onClick={() => void onToggle()}
-        aria-label={task.isCompleted ? "Mark incomplete" : "Mark complete"}
+        className={`checkbox-custom ${optimisticCompleted ? "checked" : ""}`}
+        onClick={handleToggle}
+        aria-label={optimisticCompleted ? "Mark incomplete" : "Mark complete"}
       >
-        {task.isCompleted && <Check size={14} color="white" strokeWidth={3} />}
+        {optimisticCompleted && <Check size={14} color="white" strokeWidth={3} />}
       </button>
 
       <div className="min-w-0 flex-1">

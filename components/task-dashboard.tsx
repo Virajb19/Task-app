@@ -19,6 +19,7 @@ import { useMutationWithToast } from "@/lib/use-mutation-toast";
 import { ProfilePhoto } from "@/components/profile-photo";
 import { TaskItem } from "@/components/task-item";
 import { UpdatePhotoModal } from "@/components/update-photo-modal";
+import YearProgress from "@/components/YearProgress";
 
 const TYPEWRITER_TEXT = "Get things done";
 
@@ -180,6 +181,8 @@ export function TaskDashboard() {
             Sign Out
           </button>
         </header>
+
+        <YearProgress />
 
         <div
           className="glass animate-fade-in-up"
