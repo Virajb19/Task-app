@@ -347,5 +347,5 @@ function getTaskAgeToneStyle(timestamp: number, highPriority: boolean): React.CS
     return { backgroundColor: "rgba(250, 204, 21, 0.15)", borderWidth: '2px', borderStyle: 'solid', borderColor: 'rgb(245, 158, 11)' };
   }
 
-  return { borderColor: "var(--glass-border)" };
+  return { borderColor: "var(--glass-border)", borderWidth: '2px', borderStyle: 'solid' };
 }
