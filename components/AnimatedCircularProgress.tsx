@@ -101,7 +101,14 @@ export default function AnimatedCircularProgressBar({
             </svg>
             <span
                 data-current-value={currentPercent}
-                className="duration-[var(--transition-length)] delay-[var(--delay)] absolute inset-0 m-auto size-fit ease-linear animate-in fade-in text-slate-700 dark:text-white"
+                className="duration-[var(--transition-length)] delay-[var(--delay)] absolute inset-0 m-auto size-fit ease-linear animate-in fade-in"
+                style={{
+                    fontWeight: 800,
+                    background: "linear-gradient(135deg, var(--accent), var(--accent-light))",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                }}
             >
                 {currentPercent}%
             </span>
