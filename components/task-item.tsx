@@ -111,6 +111,7 @@ export function TaskItem({
           : { duration: 0.2 }
       }
     >
+     {/* <div className="absolute -inset-0.5 -z-40 bg-orange-600 blur-md sm:group-hover:animate-pulse sm:group-hover:duration-700"/> */}
       <button
         className={`checkbox-custom ${task.isCompleted ? "checked" : ""}`}
         onClick={() => void onToggle()}
@@ -335,15 +336,17 @@ function getTaskAgeToneStyle(timestamp: number, highPriority: boolean): React.CS
   if (highPriority) {
     return {
       backgroundColor: "rgba(60, 46, 116, 0.5)",
+      borderWidth: '3px',
+      borderStyle: 'dashed',
     };
   }
 
   if (ageMs >= 7 * dayMs) {
-    return { backgroundColor: "rgba(239, 68, 68, 0.15)" };
+    return { backgroundColor: "rgba(239, 68, 68, 0.15)", borderWidth: '2px', borderStyle: 'dashed', borderColor: 'rgba(239, 68, 68, 0.5)' };
   }
 
   if (ageMs >= 3 * dayMs) {
-    return { backgroundColor: "rgba(250, 204, 21, 0.15)" };
+    return { backgroundColor: "rgba(250, 204, 21, 0.15)", borderWidth: '2px', borderStyle: 'dashed', borderColor: 'rgba(250, 204, 21, 0.5)' };
   }
 
   return undefined;
