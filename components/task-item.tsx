@@ -341,11 +341,11 @@ function getTaskAgeToneStyle(timestamp: number, highPriority: boolean): React.CS
   }
 
   if (ageMs >= 7 * dayMs) {
-    return { backgroundColor: "rgba(239, 68, 68, 0.15)", borderWidth: '2px', borderStyle: 'solid', borderColor: 'rgba(239, 68, 68)' };
+    return { backgroundColor: "rgba(239, 68, 68, 0.15)", borderWidth: '2px', borderStyle: 'solid', borderColor: 'rgb(220, 38, 38)' };
   }
 
   if (ageMs >= 3 * dayMs) {
-    return { backgroundColor: "rgba(250, 204, 21, 0.15)", borderWidth: '2px', borderStyle: 'solid', borderColor: 'rgba(202, 138, 45)' };
+    return { backgroundColor: "rgba(250, 204, 21, 0.15)", borderWidth: '2px', borderStyle: 'solid', borderColor: 'rgb(245, 158, 11)' };
   }
 
   return undefined;
