@@ -2,6 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
 import { TaskItem } from "@/components/task-item";
 
@@ -26,7 +27,15 @@ export function SortableTaskItem({
   onEdit,
   onTogglePriority,
 }: SortableTaskItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: task._id,
   });
 
@@ -37,22 +46,34 @@ export function SortableTaskItem({
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
-        cursor: isDragging ? "grabbing" : "grab",
-        touchAction: "none",
-        WebkitUserSelect: "none",
-        userSelect: "none",
+        borderStyle: (!task.isHighPriority && isDragging) ? "dashed" : "solid",
       }}
-      {...attributes}
-      {...listeners}
+      className="flex items-center gap-2"
     >
-      <TaskItem
-        task={task}
-        onToggle={onToggle}
-        onDelete={onDelete}
-        onEdit={onEdit}
-        onTogglePriority={onTogglePriority}
-      />
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        aria-label="Drag to reorder task"
+        className="btn-ghost !hidden min-w-0 p-[0.4rem] text-(--text-muted) md:!inline-flex"
+        style={{ touchAction: "none", cursor: isDragging ? "grabbing" : "grab" }}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical size={16} />
+      </button>
+      <div className="min-w-0 flex-1">
+        <TaskItem
+          task={task}
+          onToggle={onToggle}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          onTogglePriority={onTogglePriority}
+          mobileDragAttributes={attributes}
+          mobileDragListeners={listeners}
+          setMobileDragActivatorNodeRef={setActivatorNodeRef}
+          isMobileDragging={isDragging}
+        />
+      </div>
     </div>
   );
-
 }

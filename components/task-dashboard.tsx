@@ -67,7 +67,7 @@ export function TaskDashboard() {
     useSensor(MouseSensor),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 180,
+        delay: 250,
         tolerance: 8,
       },
     }),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/core";
 import { motion } from "framer-motion";
 import { useMediaQuery } from "usehooks-ts";
 import { Check, Clock, Flame, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
@@ -37,6 +38,10 @@ type TaskItemProps = {
   onDelete: () => void | Promise<unknown>;
   onEdit: (text: string) => void | Promise<unknown>;
   onTogglePriority: () => void | Promise<unknown>;
+  mobileDragAttributes?: DraggableAttributes;
+  mobileDragListeners?: DraggableSyntheticListeners;
+  setMobileDragActivatorNodeRef?: (element: HTMLElement | null) => void;
+  isMobileDragging?: boolean;
 };
 
 export function TaskItem({
@@ -45,6 +50,10 @@ export function TaskItem({
   onDelete,
   onEdit,
   onTogglePriority,
+  mobileDragAttributes,
+  mobileDragListeners,
+  setMobileDragActivatorNodeRef,
+  isMobileDragging = false,
 }: TaskItemProps) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [isEditing, setIsEditing] = useState(false);
@@ -201,6 +210,9 @@ export function TaskItem({
             type="button"
             aria-label="Task options"
             className="btn-ghost"
+            ref={setMobileDragActivatorNodeRef}
+            {...mobileDragAttributes}
+            {...mobileDragListeners}
             style={{
               display: "inline-flex",
               width: "32px",
@@ -213,6 +225,8 @@ export function TaskItem({
               background: "#18181b",
               color: "#f4f4f5",
               opacity: 1,
+              touchAction: "none",
+              cursor: isMobileDragging ? "grabbing" : "grab",
             }}
           >
             <MoreHorizontal size={16} className="text-current" />
