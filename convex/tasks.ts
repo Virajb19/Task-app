@@ -1,19 +1,25 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-// Get all tasks for a user, ordered by creation time (newest first)
+// Get all tasks for a user, ordered by `order` descending (newest/highest first)
 export const get = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const tasks = await ctx.db
       .query("tasks")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-      .order("desc")
       .collect();
+
+    // Sort by order descending – tasks without an order fall back to createdAt
+    return tasks.sort((a, b) => {
+      const orderA = a.order ?? a.createdAt;
+      const orderB = b.order ?? b.createdAt;
+      return orderB - orderA; // highest first = newest first
+    });
   },
 });
 
-// Create a new task
+// Create a new task – auto-assign order so it appears at the top
 export const create = mutation({
   args: {
     userId: v.id("users"),
@@ -21,12 +27,14 @@ export const create = mutation({
     isHighPriority: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    const now = Date.now();
     return await ctx.db.insert("tasks", {
       userId: args.userId,
       text: args.text,
       isCompleted: false,
       isHighPriority: args.isHighPriority ?? false,
-      createdAt: Date.now(),
+      createdAt: now,
+      order: now, // highest value = top of list
     });
   },
 });
@@ -77,5 +85,21 @@ export const remove = mutation({
   args: { taskId: v.id("tasks") },
   handler: async (ctx, args) => {
     await ctx.db.delete(args.taskId);
+  },
+});
+
+// Reorder tasks – update the order of all affected tasks in one mutation
+export const reorder = mutation({
+  args: {
+    taskIds: v.array(v.id("tasks")),
+  },
+  handler: async (ctx, args) => {
+    // Assign order values in descending order so index 0 = highest = top
+    const now = Date.now();
+    for (let i = 0; i < args.taskIds.length; i++) {
+      await ctx.db.patch(args.taskIds[i], {
+        order: now - i,
+      });
+    }
   },
 });

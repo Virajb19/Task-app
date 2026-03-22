@@ -1,9 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useQuery } from "convex/react";
 import { motion } from "framer-motion";
+import {
+  closestCenter,
+  DndContext,
+  DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import {
   CircleCheckBig,
   Flame,
@@ -18,6 +33,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useMutationWithToast } from "@/lib/use-mutation-toast";
 import { ProfilePhoto } from "@/components/profile-photo";
 import { TaskItem } from "@/components/task-item";
+import { SortableTaskItem } from "@/components/SortableTaskItem";
 import { UpdatePhotoModal } from "@/components/update-photo-modal";
 import YearProgress from "@/components/YearProgress";
 
@@ -45,6 +61,13 @@ export function TaskDashboard() {
   const togglePriorityTask = useMutationWithToast(api.tasks.togglePriority, {
     loading: "Updating priority…",
   });
+  const reorderTasks = useMutationWithToast(api.tasks.reorder, {});
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const [newTaskText, setNewTaskText] = useState("");
   const [newTaskHighPriority, setNewTaskHighPriority] = useState(false);
@@ -53,6 +76,14 @@ export function TaskDashboard() {
   const [searchText, setSearchText] = useState("");
   const [showHighPriorityOnly, setShowHighPriorityOnly] = useState(false);
   const [typedHeading, setTypedHeading] = useState("");
+  type DashboardTask = {
+    _id: Id<"tasks">;
+    text: string;
+    isCompleted: boolean;
+    createdAt: number;
+    isHighPriority?: boolean;
+  };
+  const [optimisticPendingTasks, setOptimisticPendingTasks] = useState<DashboardTask[] | null>(null);
   const [isDeletingHeading, setIsDeletingHeading] = useState(false);
 
   useEffect(() => {
@@ -118,8 +149,42 @@ export function TaskDashboard() {
     const matchesPriority = showHighPriorityOnly ? highPriority : true;
     return matchesSearch && matchesPriority;
   });
-  const filteredCompletedCount = filteredTasks.filter((task) => task.isCompleted).length;
-  const filteredPendingCount = filteredTasks.length - filteredCompletedCount;
+  const pendingTasks = filteredTasks.filter((task) => !task.isCompleted);
+  const completedTasks = filteredTasks.filter((task) => task.isCompleted);
+  const filteredCompletedCount = completedTasks.length;
+  const filteredPendingCount = pendingTasks.length;
+
+  // Use optimistic state for pending tasks during drag, fall back to query data
+  const displayedPendingTasks = optimisticPendingTasks ?? pendingTasks;
+
+  // Reset optimistic state when query data changes
+  useEffect(() => {
+    setOptimisticPendingTasks(null);
+  }, [tasks]);
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      setOptimisticPendingTasks((prev) => {
+        const items = prev ?? pendingTasks;
+        const oldIndex = items.findIndex((item) => item._id === active.id);
+        const newIndex = items.findIndex((item) => item._id === over.id);
+
+        if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
+          return items;
+        }
+
+        const moved = arrayMove(items, oldIndex, newIndex);
+        const newIds = moved.map((t) => t._id) as Id<"tasks">[];
+        void reorderTasks({ taskIds: newIds });
+        return moved;
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pendingTasks]
+  );
 
   return (
     <div className="relative min-h-screen">
@@ -502,18 +567,27 @@ export function TaskDashboard() {
                 gap: "0.5rem",
               }}
             >
-              {filteredTasks
-                .filter((task) => !task.isCompleted)
-                .map((task) => (
-                  <TaskItem
-                    key={task._id}
-                    task={task}
-                    onToggle={() => toggleTask({ taskId: task._id })}
-                    onDelete={() => deleteTask({ taskId: task._id })}
-                    onEdit={(text) => handleEditTask(task._id, text)}
-                    onTogglePriority={() => togglePriorityTask({ taskId: task._id })}
-                  />
-                ))}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={displayedPendingTasks.map((task) => task._id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {displayedPendingTasks.map((task) => (
+                    <SortableTaskItem
+                      key={task._id}
+                      task={task}
+                      onToggle={() => toggleTask({ taskId: task._id })}
+                      onDelete={() => deleteTask({ taskId: task._id })}
+                      onEdit={(text) => handleEditTask(task._id, text)}
+                      onTogglePriority={() => togglePriorityTask({ taskId: task._id })}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
 
               {filteredCompletedCount > 0 && filteredPendingCount > 0 && (
                 <div
@@ -542,18 +616,16 @@ export function TaskDashboard() {
                 </div>
               )}
 
-              {filteredTasks
-                .filter((task) => task.isCompleted)
-                .map((task) => (
-                  <TaskItem
-                    key={task._id}
-                    task={task}
-                    onToggle={() => toggleTask({ taskId: task._id })}
-                    onDelete={() => deleteTask({ taskId: task._id })}
-                    onEdit={(text) => handleEditTask(task._id, text)}
-                    onTogglePriority={() => togglePriorityTask({ taskId: task._id })}
-                  />
-                ))}
+              {completedTasks.map((task) => (
+                <TaskItem
+                  key={task._id}
+                  task={task}
+                  onToggle={() => toggleTask({ taskId: task._id })}
+                  onDelete={() => deleteTask({ taskId: task._id })}
+                  onEdit={(text) => handleEditTask(task._id, text)}
+                  onTogglePriority={() => togglePriorityTask({ taskId: task._id })}
+                />
+              ))}
             </div>
           )}
         </div>

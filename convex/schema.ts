@@ -16,5 +16,6 @@ export default defineSchema({
     isCompleted: v.boolean(),
     isHighPriority: v.optional(v.boolean()),
     createdAt: v.number(),
+    order: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
 });
