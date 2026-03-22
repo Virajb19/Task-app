@@ -38,6 +38,9 @@ export function SortableTaskItem({
         transition,
         opacity: isDragging ? 0.5 : 1,
         cursor: isDragging ? "grabbing" : "grab",
+        touchAction: "none",
+        WebkitUserSelect: "none",
+        userSelect: "none",
       }}
       {...attributes}
       {...listeners}

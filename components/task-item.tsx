@@ -96,7 +96,6 @@ export function TaskItem({
       className={twMerge(
         "task-card task-item",
         optimisticCompleted && "completed",
-        highPriority && "ring-2 ring-violet-300/50"
       )}
       style={ageToneStyle}
       animate={
