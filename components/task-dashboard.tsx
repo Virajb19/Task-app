@@ -351,13 +351,12 @@ export function TaskDashboard() {
               gap: "0.75rem",
             }}
           >
-            <input
+            <textarea
               className="input-field"
-              type="text"
               placeholder="What needs to be done?"
               value={newTaskText}
               onChange={(e) => setNewTaskText(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && void handleAddTask()}
+              rows={2}
               autoFocus
             />
             <button
@@ -403,6 +402,7 @@ export function TaskDashboard() {
           <>
             <button
               className="btn-primary animate-fade-in"
+              disabled={isAdding}
               onClick={() => setIsAdding(true)}
               style={{
                 width: "100%",

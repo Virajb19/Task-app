@@ -47,6 +47,7 @@ export function SortableTaskItem({
         transition,
         opacity: isDragging ? 0.5 : 1,
         borderStyle: (!task.isHighPriority && isDragging) ? "dashed" : "solid",
+        borderColor: isDragging ? "var(--border-muted)" : "transparent",
       }}
       className="flex items-center gap-2"
     >
