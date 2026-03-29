@@ -160,7 +160,7 @@ export function TaskItem({
             </button>
           </div>
         ) : (
-          <p className="task-text m-0 wrap-break-word text-[0.9375rem] font-medium leading-[1.4]">
+          <p className="task-text m-0 wrap-break-word whitespace-pre-wrap text-[0.9375rem] font-medium leading-[1.4]">
             {task.text}
           </p>
         )}

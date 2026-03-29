@@ -27,8 +27,20 @@ import {
   LogOut,
   Plus,
   Search,
+  Trash2,
   X,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutationWithToast } from "@/lib/use-mutation-toast";
@@ -62,6 +74,10 @@ export function TaskDashboard() {
   const togglePriorityTask = useMutationWithToast(api.tasks.togglePriority, {
     loading: "Updating priority…",
   });
+  const deleteAllCompleted = useMutationWithToast(api.tasks.removeAllCompleted, {
+    loading: "Deleting completed tasks…",
+    success: "All completed tasks deleted",
+  });
   const reorderTasks = useMutationWithToast(api.tasks.reorder, {});
   const sensors = useSensors(
     useSensor(MouseSensor),
@@ -82,7 +98,9 @@ export function TaskDashboard() {
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [showHighPriorityOnly, setShowHighPriorityOnly] = useState(false);
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [typedHeading, setTypedHeading] = useState("");
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
   type DashboardTask = {
     _id: Id<"tasks">;
     text: string;
@@ -126,15 +144,20 @@ export function TaskDashboard() {
   }, [typedHeading, isDeletingHeading]);
 
   const handleAddTask = async () => {
-    if (!newTaskText.trim()) return;
-    await createTask({
-      userId,
-      text: newTaskText.trim(),
-      isHighPriority: newTaskHighPriority,
-    });
-    setNewTaskText("");
-    setNewTaskHighPriority(false);
-    setIsAdding(false);
+    if (!newTaskText.trim() || isSubmittingTask) return;
+    setIsSubmittingTask(true);
+    try {
+      await createTask({
+        userId,
+        text: newTaskText.trim(),
+        isHighPriority: newTaskHighPriority,
+      });
+      setNewTaskText("");
+      setNewTaskHighPriority(false);
+      setIsAdding(false);
+    } finally {
+      setIsSubmittingTask(false);
+    }
   };
 
   const handleEditTask = async (taskId: Id<"tasks">, text: string) => {
@@ -390,11 +413,11 @@ export function TaskDashboard() {
               <button
                 className="btn-primary"
                 onClick={() => void handleAddTask()}
-                disabled={!newTaskText.trim()}
+                disabled={!newTaskText.trim() || isSubmittingTask}
                 style={{ padding: "0.5rem 1rem", fontSize: "0.8125rem" }}
               >
                 <Plus size={16} />
-                Add
+                {isSubmittingTask ? "Adding…" : "Add"}
               </button>
             </div>
           </div>
@@ -596,30 +619,109 @@ export function TaskDashboard() {
                 </SortableContext>
               </DndContext>
 
-              {filteredCompletedCount > 0 && filteredPendingCount > 0 && (
+              {filteredCompletedCount > 0 && (
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
+                    justifyContent: "space-between",
                     gap: "0.75rem",
-                    padding: "0.5rem 0",
-                    margin: "0.25rem 0",
+                    padding: "0.75rem 1rem",
+                    margin: "0.75rem 0 0.5rem",
+                    borderRadius: "0.875rem",
+                    background: "rgba(52, 211, 153, 0.04)",
+                    border: "1px solid rgba(52, 211, 153, 0.12)",
                   }}
                 >
-                  <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
-                  <span
-                    style={{
-                      fontSize: "0.75rem",
-                      color: "var(--text-muted)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.375rem",
-                    }}
-                  >
-                    <CircleCheckBig size={12} />
-                    Completed ({filteredCompletedCount})
-                  </span>
-                  <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "8px",
+                        background: "linear-gradient(135deg, rgba(52, 211, 153, 0.2), rgba(110, 231, 183, 0.15))",
+                      }}
+                    >
+                      <CircleCheckBig
+                        size={15}
+                        style={{ color: "#34d399" }}
+                      />
+                    </div>
+                    <span
+                      style={{
+                        fontSize: "0.8125rem",
+                        fontWeight: 600,
+                        color: "var(--text-secondary)",
+                        letterSpacing: "0.01em",
+                      }}
+                    >
+                      Completed
+                    </span>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minWidth: "22px",
+                        height: "22px",
+                        padding: "0 6px",
+                        borderRadius: "999px",
+                        fontSize: "0.6875rem",
+                        fontWeight: 700,
+                        background: "linear-gradient(135deg, rgba(52, 211, 153, 0.2), rgba(110, 231, 183, 0.12))",
+                        color: "#6ee7b7",
+                        boxShadow: "0 0 8px rgba(52, 211, 153, 0.15)",
+                      }}
+                    >
+                      {filteredCompletedCount}
+                    </span>
+                  </div>
+
+                  <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+                    <AlertDialogTrigger
+                      onClick={() => setShowDeleteAllDialog(true)}
+                      className="btn-ghost"
+                      style={{
+                        padding: "0.375rem 0.75rem",
+                        fontSize: "0.75rem",
+                        color: "#fca5a5",
+                        borderColor: "rgba(248, 113, 113, 0.25)",
+                        background: "rgba(248, 113, 113, 0.06)",
+                        borderRadius: "0.625rem",
+                        gap: "0.375rem",
+                      }}
+                    >
+                      <Trash2 size={13} />
+                      Delete All
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete all completed tasks?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently remove{" "}
+                          <strong>{filteredCompletedCount}</strong> completed{" "}
+                          {filteredCompletedCount === 1 ? "task" : "tasks"}. This action
+                          cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          variant="destructive"
+                          onClick={() => {
+                            void deleteAllCompleted({ userId });
+                            setShowDeleteAllDialog(false);
+                          }}
+                        >
+                          <Trash2 size={14} />
+                          Delete All
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               )}
 

@@ -88,6 +88,22 @@ export const remove = mutation({
   },
 });
 
+// Delete all completed tasks for a user
+export const removeAllCompleted = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const tasks = await ctx.db
+      .query("tasks")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("isCompleted"), true))
+      .collect();
+    for (const task of tasks) {
+      await ctx.db.delete(task._id);
+    }
+    return tasks.length;
+  },
+});
+
 // Reorder tasks – update the order of all affected tasks in one mutation
 export const reorder = mutation({
   args: {
