@@ -26,6 +26,30 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { twMerge } from "tailwind-merge";
 
+function linkify(text: string) {
+  return text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+    /^https?:\/\//.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          color: "#93c5fd",
+          textDecoration: "underline",
+          textUnderlineOffset: "2px",
+          wordBreak: "break-all",
+        }}
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    )
+  );
+}
+
 type TaskItemProps = {
   task: {
     _id: Id<"tasks">;
@@ -161,7 +185,7 @@ export function TaskItem({
           </div>
         ) : (
           <p className="task-text m-0 wrap-break-word whitespace-pre-wrap text-[0.9375rem] font-medium leading-[1.4]">
-            {task.text}
+            {linkify(task.text)}
           </p>
         )}
         <p className="mt-0.5 flex items-center gap-1 text-[0.6875rem] font-bold text-(--text-muted)">

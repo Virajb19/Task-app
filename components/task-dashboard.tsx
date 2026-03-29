@@ -381,6 +381,7 @@ export function TaskDashboard() {
               onChange={(e) => setNewTaskText(e.target.value)}
               rows={2}
               autoFocus
+              style={{ resize: "none" }}
             />
             <button
               type="button"
@@ -630,7 +631,7 @@ export function TaskDashboard() {
                     margin: "0.75rem 0 0.5rem",
                     borderRadius: "0.875rem",
                     background: "rgba(52, 211, 153, 0.04)",
-                    border: "1px solid rgba(52, 211, 153, 0.12)",
+                    border: "2px solid #1c6d3aff",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
