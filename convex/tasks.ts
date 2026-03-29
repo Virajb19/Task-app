@@ -25,6 +25,7 @@ export const create = mutation({
     userId: v.id("users"),
     text: v.string(),
     isHighPriority: v.optional(v.boolean()),
+    groupId: v.optional(v.id("taskGroups")),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -34,7 +35,8 @@ export const create = mutation({
       isCompleted: false,
       isHighPriority: args.isHighPriority ?? false,
       createdAt: now,
-      order: now, // highest value = top of list
+      order: now,
+      groupId: args.groupId,
     });
   },
 });
@@ -110,12 +112,22 @@ export const reorder = mutation({
     taskIds: v.array(v.id("tasks")),
   },
   handler: async (ctx, args) => {
-    // Assign order values in descending order so index 0 = highest = top
     const now = Date.now();
     for (let i = 0; i < args.taskIds.length; i++) {
       await ctx.db.patch(args.taskIds[i], {
         order: now - i,
       });
     }
+  },
+});
+
+// Move a task to a different group (or ungrouped)
+export const moveToGroup = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    groupId: v.optional(v.id("taskGroups")),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.taskId, { groupId: args.groupId });
   },
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useQuery } from "convex/react";
 import { motion } from "framer-motion";
@@ -8,6 +8,7 @@ import {
   closestCenter,
   DndContext,
   DragEndEvent,
+  DragOverEvent,
   KeyboardSensor,
   MouseSensor,
   TouchSensor,
@@ -23,6 +24,7 @@ import {
 import {
   CircleCheckBig,
   Flame,
+  FolderPlus,
   ListTodo,
   LogOut,
   Plus,
@@ -47,16 +49,30 @@ import { useMutationWithToast } from "@/lib/use-mutation-toast";
 import { ProfilePhoto } from "@/components/profile-photo";
 import { TaskItem } from "@/components/task-item";
 import { SortableTaskItem } from "@/components/SortableTaskItem";
+import { TaskGroupSection } from "@/components/TaskGroupSection";
 import { UpdatePhotoModal } from "@/components/update-photo-modal";
 import YearProgress from "@/components/YearProgress";
 
 const TYPEWRITER_TEXT = "Get things done";
+
+const GROUP_COLORS = [
+  "#8b5cf6", // violet
+  "#3b82f6", // blue
+  "#22c55e", // green
+  "#f59e0b", // amber
+  "#ef4444", // red
+  "#ec4899", // pink
+  "#06b6d4", // cyan
+  "#f97316", // orange
+];
 
 export function TaskDashboard() {
   const { data: session } = useSession();
   const userId = session!.user.id as Id<"users">;
 
   const tasks = useQuery(api.tasks.get, { userId });
+  const groups = useQuery(api.taskGroups.get, { userId });
+
   const createTask = useMutationWithToast(api.tasks.create, {
     loading: "Adding task…",
   });
@@ -79,6 +95,19 @@ export function TaskDashboard() {
     success: "All completed tasks deleted",
   });
   const reorderTasks = useMutationWithToast(api.tasks.reorder, {});
+  const moveToGroup = useMutationWithToast(api.tasks.moveToGroup, {});
+
+  const createGroup = useMutationWithToast(api.taskGroups.create, {
+    loading: "Creating group…",
+    success: "Group created",
+  });
+  const renameGroup = useMutationWithToast(api.taskGroups.rename, {});
+  const deleteGroup = useMutationWithToast(api.taskGroups.remove, {
+    loading: "Deleting group…",
+    success: "Group deleted",
+  });
+  const toggleCollapseGroup = useMutationWithToast(api.taskGroups.toggleCollapse, {});
+
   const sensors = useSensors(
     useSensor(MouseSensor),
     useSensor(TouchSensor, {
@@ -94,6 +123,7 @@ export function TaskDashboard() {
 
   const [newTaskText, setNewTaskText] = useState("");
   const [newTaskHighPriority, setNewTaskHighPriority] = useState(false);
+  const [newTaskGroupId, setNewTaskGroupId] = useState<Id<"taskGroups"> | undefined>(undefined);
   const [isAdding, setIsAdding] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [searchText, setSearchText] = useState("");
@@ -101,12 +131,17 @@ export function TaskDashboard() {
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [typedHeading, setTypedHeading] = useState("");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+  const [isAddingGroup, setIsAddingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupColor, setNewGroupColor] = useState(GROUP_COLORS[0]);
+
   type DashboardTask = {
     _id: Id<"tasks">;
     text: string;
     isCompleted: boolean;
     createdAt: number;
     isHighPriority?: boolean;
+    groupId?: Id<"taskGroups">;
   };
   const [optimisticPendingTasks, setOptimisticPendingTasks] = useState<DashboardTask[] | null>(null);
   const [isDeletingHeading, setIsDeletingHeading] = useState(false);
@@ -151,6 +186,7 @@ export function TaskDashboard() {
         userId,
         text: newTaskText.trim(),
         isHighPriority: newTaskHighPriority,
+        groupId: newTaskGroupId,
       });
       setNewTaskText("");
       setNewTaskHighPriority(false);
@@ -158,6 +194,18 @@ export function TaskDashboard() {
     } finally {
       setIsSubmittingTask(false);
     }
+  };
+
+  const handleAddGroup = async () => {
+    if (!newGroupName.trim()) return;
+    await createGroup({
+      userId,
+      name: newGroupName.trim(),
+      color: newGroupColor,
+    });
+    setNewGroupName("");
+    setNewGroupColor(GROUP_COLORS[0]);
+    setIsAddingGroup(false);
   };
 
   const handleEditTask = async (taskId: Id<"tasks">, text: string) => {
@@ -179,13 +227,26 @@ export function TaskDashboard() {
     const matchesPriority = showHighPriorityOnly ? highPriority : true;
     return matchesSearch && matchesPriority;
   });
-  const pendingTasks = filteredTasks.filter((task) => !task.isCompleted);
+  const pendingTasks = filteredTasks.filter((task) => !task.isCompleted) as DashboardTask[];
   const completedTasks = filteredTasks.filter((task) => task.isCompleted);
   const filteredCompletedCount = completedTasks.length;
-  const filteredPendingCount = pendingTasks.length;
 
-  // Use optimistic state for pending tasks during drag, fall back to query data
-  const displayedPendingTasks = optimisticPendingTasks ?? pendingTasks;
+  // Group pending tasks by groupId
+  const { ungroupedTasks, groupedTasks } = useMemo(() => {
+    const source = (optimisticPendingTasks ?? pendingTasks) as DashboardTask[];
+    const ungrouped: DashboardTask[] = [];
+    const grouped: Record<string, DashboardTask[]> = {};
+
+    for (const task of source) {
+      if (task.groupId) {
+        if (!grouped[task.groupId]) grouped[task.groupId] = [];
+        grouped[task.groupId].push(task);
+      } else {
+        ungrouped.push(task);
+      }
+    }
+    return { ungroupedTasks: ungrouped, groupedTasks: grouped };
+  }, [optimisticPendingTasks, pendingTasks]);
 
   // Reset optimistic state when query data changes
   useEffect(() => {
@@ -195,25 +256,58 @@ export function TaskDashboard() {
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
-      if (!over || active.id === over.id) return;
+      if (!over) return;
 
-      setOptimisticPendingTasks((prev) => {
-        const items = prev ?? pendingTasks;
-        const oldIndex = items.findIndex((item) => item._id === active.id);
-        const newIndex = items.findIndex((item) => item._id === over.id);
+      const activeId = active.id as string;
+      const overId = over.id as string;
 
-        if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
-          return items;
+      // Check if dropped on a group droppable (cross-group move)
+      const overData = over.data?.current as { type?: string; groupId?: Id<"taskGroups"> } | undefined;
+      if (overData?.type === "group") {
+        // Find the task's current groupId
+        const task = pendingTasks.find((t) => t._id === activeId);
+        if (task) {
+          const targetGroupId = overData.groupId;
+          if (task.groupId !== targetGroupId) {
+            void moveToGroup({ taskId: task._id as Id<"tasks">, groupId: targetGroupId });
+          }
         }
+        return;
+      }
 
-        const moved = arrayMove(items, oldIndex, newIndex);
-        const newIds = moved.map((t) => t._id) as Id<"tasks">[];
-        void reorderTasks({ taskIds: newIds });
-        return moved;
-      });
+      // Same-list reorder
+      if (activeId === overId) return;
+
+      // Find which list both items belong to
+      const activeTask = pendingTasks.find((t) => t._id === activeId);
+      const overTask = pendingTasks.find((t) => t._id === overId);
+      if (!activeTask || !overTask) return;
+
+      // If they're in different groups, move the active task to the over task's group
+      if (activeTask.groupId !== overTask.groupId) {
+        void moveToGroup({
+          taskId: activeTask._id as Id<"tasks">,
+          groupId: overTask.groupId,
+        });
+        return;
+      }
+
+      // Same group reorder
+      const groupId = activeTask.groupId;
+      const listTasks = groupId
+        ? (groupedTasks[groupId] ?? [])
+        : ungroupedTasks;
+
+      const oldIndex = listTasks.findIndex((t) => t._id === activeId);
+      const newIndex = listTasks.findIndex((t) => t._id === overId);
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+
+      const moved = arrayMove(listTasks, oldIndex, newIndex);
+      const newIds = moved.map((t) => t._id) as Id<"tasks">[];
+      void reorderTasks({ taskIds: newIds });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pendingTasks]
+    [pendingTasks, ungroupedTasks, groupedTasks]
   );
 
   return (
@@ -383,22 +477,42 @@ export function TaskDashboard() {
               autoFocus
               style={{ resize: "none" }}
             />
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={() => setNewTaskHighPriority((prev) => !prev)}
-              style={{
-                alignSelf: "flex-start",
-                padding: "0.45rem 0.75rem",
-                fontSize: "0.75rem",
-                borderColor: newTaskHighPriority ? "#a78bfa" : undefined,
-                color: newTaskHighPriority ? "#c4b5fd" : undefined,
-                background: newTaskHighPriority ? "rgba(167, 139, 250, 0.12)" : undefined,
-              }}
-            >
-              <Flame size={14} />
-              {newTaskHighPriority ? "High Priority" : "Mark High Priority"}
-            </button>
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => setNewTaskHighPriority((prev) => !prev)}
+                style={{
+                  padding: "0.45rem 0.75rem",
+                  fontSize: "0.75rem",
+                  borderColor: newTaskHighPriority ? "#a78bfa" : undefined,
+                  color: newTaskHighPriority ? "#c4b5fd" : undefined,
+                  background: newTaskHighPriority ? "rgba(167, 139, 250, 0.12)" : undefined,
+                }}
+              >
+                <Flame size={14} />
+                {newTaskHighPriority ? "High Priority" : "Mark High Priority"}
+              </button>
+              {(groups ?? []).length > 0 && (
+                <select
+                  className="select-field"
+                  value={newTaskGroupId ?? ""}
+                  onChange={(e) =>
+                    setNewTaskGroupId(
+                      e.target.value ? (e.target.value as Id<"taskGroups">) : undefined
+                    )
+                  }
+                  style={{ fontSize: "0.75rem", padding: "0.45rem 2rem 0.45rem 0.75rem" }}
+                >
+                  <option value="">No Group</option>
+                  {(groups ?? []).map((g) => (
+                    <option key={g._id} value={g._id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
             <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
               <button
                 className="btn-ghost"
@@ -406,6 +520,7 @@ export function TaskDashboard() {
                   setIsAdding(false);
                   setNewTaskText("");
                   setNewTaskHighPriority(false);
+                  setNewTaskGroupId(undefined);
                 }}
                 style={{ padding: "0.5rem 1rem", fontSize: "0.8125rem" }}
               >
@@ -424,19 +539,31 @@ export function TaskDashboard() {
           </div>
         ) : (
           <>
-            <button
-              className="btn-primary animate-fade-in"
-              disabled={isAdding}
-              onClick={() => setIsAdding(true)}
-              style={{
-                width: "100%",
-                marginBottom: "0.5rem",
-                padding: "0.875rem",
-              }}
-            >
-              <Plus size={20} />
-              Add New Task
-            </button>
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+              <button
+                className="btn-primary animate-fade-in"
+                disabled={isAdding}
+                onClick={() => setIsAdding(true)}
+                style={{
+                  flex: 1,
+                  padding: "0.875rem",
+                }}
+              >
+                <Plus size={20} />
+                Add New Task
+              </button>
+              <button
+                className="btn-ghost animate-fade-in"
+                onClick={() => setIsAddingGroup(true)}
+                style={{
+                  padding: "0.875rem",
+                  fontSize: "0.8125rem",
+                }}
+                title="New Group"
+              >
+                <FolderPlus size={18} />
+              </button>
+            </div>
             <motion.p
               style={{
                 textAlign: "center",
@@ -467,6 +594,72 @@ export function TaskDashboard() {
               </motion.span>
             </motion.p>
           </>
+        )}
+
+        {/* Add Group Form */}
+        {isAddingGroup && (
+          <div
+            className="glass animate-slide-down"
+            style={{
+              padding: "1rem",
+              marginBottom: "1rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.75rem",
+            }}
+          >
+            <input
+              className="input-field"
+              placeholder="Group name"
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void handleAddGroup();
+              }}
+              autoFocus
+              style={{ fontSize: "0.875rem" }}
+            />
+            <div style={{ display: "flex", gap: "0.375rem", flexWrap: "wrap" }}>
+              {GROUP_COLORS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setNewGroupColor(color)}
+                  style={{
+                    width: "28px",
+                    height: "28px",
+                    borderRadius: "8px",
+                    background: color,
+                    border: newGroupColor === color ? "2px solid white" : "2px solid transparent",
+                    cursor: "pointer",
+                    transition: "transform 0.15s",
+                    transform: newGroupColor === color ? "scale(1.15)" : "scale(1)",
+                  }}
+                />
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+              <button
+                className="btn-ghost"
+                onClick={() => {
+                  setIsAddingGroup(false);
+                  setNewGroupName("");
+                }}
+                style={{ padding: "0.5rem 1rem", fontSize: "0.8125rem" }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                onClick={() => void handleAddGroup()}
+                disabled={!newGroupName.trim()}
+                style={{ padding: "0.5rem 1rem", fontSize: "0.8125rem" }}
+              >
+                <Plus size={16} />
+                Create Group
+              </button>
+            </div>
+          </div>
         )}
 
         <div
@@ -603,11 +796,29 @@ export function TaskDashboard() {
                 collisionDetection={closestCenter}
                 onDragEnd={handleDragEnd}
               >
+                {/* Task Groups */}
+                {(groups ?? []).map((group) => (
+                  <TaskGroupSection
+                    key={group._id}
+                    group={group}
+                    tasks={groupedTasks[group._id] ?? []}
+                    onToggleTask={(taskId) => toggleTask({ taskId })}
+                    onDeleteTask={(taskId) => deleteTask({ taskId })}
+                    onEditTask={(taskId, text) => handleEditTask(taskId, text)}
+                    onTogglePriority={(taskId) => togglePriorityTask({ taskId })}
+                    onRemoveFromGroup={(taskId) => moveToGroup({ taskId, groupId: undefined })}
+                    onToggleCollapse={() => toggleCollapseGroup({ groupId: group._id })}
+                    onRename={(name) => renameGroup({ groupId: group._id, name })}
+                    onDelete={() => deleteGroup({ groupId: group._id })}
+                  />
+                ))}
+
+                {/* Ungrouped Tasks */}
                 <SortableContext
-                  items={displayedPendingTasks.map((task) => task._id)}
+                  items={ungroupedTasks.map((task) => task._id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  {displayedPendingTasks.map((task) => (
+                  {ungroupedTasks.map((task) => (
                     <SortableTaskItem
                       key={task._id}
                       task={task}

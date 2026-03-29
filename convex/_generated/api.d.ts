@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as taskGroups from "../taskGroups.js";
 import type * as tasks from "../tasks.js";
 
 import type {
@@ -19,6 +20,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  taskGroups: typeof taskGroups;
   tasks: typeof tasks;
 }>;
 

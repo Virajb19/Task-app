@@ -10,6 +10,14 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_email", ["email"]),
 
+  taskGroups: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    color: v.string(),
+    order: v.number(),
+    isCollapsed: v.optional(v.boolean()),
+  }).index("by_userId", ["userId"]),
+
   tasks: defineTable({
     userId: v.id("users"),
     text: v.string(),
@@ -17,5 +25,6 @@ export default defineSchema({
     isHighPriority: v.optional(v.boolean()),
     createdAt: v.number(),
     order: v.optional(v.number()),
+    groupId: v.optional(v.id("taskGroups")),
   }).index("by_userId", ["userId"]),
 });

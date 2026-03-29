@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/core";
 import { motion } from "framer-motion";
 import { useMediaQuery } from "usehooks-ts";
-import { Check, Clock, Flame, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Check, Clock, Flame, FolderMinus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
 import {
   Dialog,
@@ -35,12 +35,7 @@ function linkify(text: string) {
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          color: "#93c5fd",
-          textDecoration: "underline",
-          textUnderlineOffset: "2px",
-          wordBreak: "break-all",
-        }}
+        className="text-blue-300 underline underline-offset-2 break-all"
       >
         {part}
       </a>
@@ -62,6 +57,8 @@ type TaskItemProps = {
   onDelete: () => void | Promise<unknown>;
   onEdit: (text: string) => void | Promise<unknown>;
   onTogglePriority: () => void | Promise<unknown>;
+  onRemoveFromGroup?: () => void | Promise<unknown>;
+  isInGroup?: boolean;
   mobileDragAttributes?: DraggableAttributes;
   mobileDragListeners?: DraggableSyntheticListeners;
   setMobileDragActivatorNodeRef?: (element: HTMLElement | null) => void;
@@ -74,6 +71,8 @@ export function TaskItem({
   onDelete,
   onEdit,
   onTogglePriority,
+  onRemoveFromGroup,
+  isInGroup = false,
   mobileDragAttributes,
   mobileDragListeners,
   setMobileDragActivatorNodeRef,
@@ -293,6 +292,22 @@ export function TaskItem({
               <Trash2 size={14} />
               Delete
             </DropdownMenuItem>
+            {isInGroup && onRemoveFromGroup && (
+              <>
+                <DropdownMenuSeparator className="my-1 bg-zinc-700/80" />
+                <DropdownMenuItem
+                  className="gap-2 px-3 py-2.5"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    void onRemoveFromGroup();
+                    setIsMobileMenuOpen(false);
+                  }}
+                >
+                  <FolderMinus size={14} />
+                  Remove from Group
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )}

@@ -18,6 +18,8 @@ type SortableTaskItemProps = {
   onDelete: () => void | Promise<unknown>;
   onEdit: (text: string) => void | Promise<unknown>;
   onTogglePriority: () => void | Promise<unknown>;
+  onRemoveFromGroup?: () => void | Promise<unknown>;
+  isInGroup?: boolean;
 };
 
 export function SortableTaskItem({
@@ -26,6 +28,8 @@ export function SortableTaskItem({
   onDelete,
   onEdit,
   onTogglePriority,
+  onRemoveFromGroup,
+  isInGroup,
 }: SortableTaskItemProps) {
   const {
     attributes,
@@ -69,6 +73,8 @@ export function SortableTaskItem({
           onDelete={onDelete}
           onEdit={onEdit}
           onTogglePriority={onTogglePriority}
+          onRemoveFromGroup={onRemoveFromGroup}
+          isInGroup={isInGroup}
           mobileDragAttributes={attributes}
           mobileDragListeners={listeners}
           setMobileDragActivatorNodeRef={setActivatorNodeRef}
