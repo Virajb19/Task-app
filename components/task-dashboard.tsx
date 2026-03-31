@@ -2,13 +2,12 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { signOut, useSession } from "next-auth/react";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { motion } from "framer-motion";
 import {
   closestCenter,
   DndContext,
   DragEndEvent,
-  DragOverEvent,
   KeyboardSensor,
   MouseSensor,
   TouchSensor,
@@ -24,6 +23,7 @@ import {
 import {
   CircleCheckBig,
   Flame,
+  Folder,
   FolderPlus,
   ListTodo,
   LogOut,
@@ -43,9 +43,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutationWithToast } from "@/lib/use-mutation-toast";
+import { toast } from "sonner";
 import { ProfilePhoto } from "@/components/profile-photo";
 import { TaskItem } from "@/components/task-item";
 import { SortableTaskItem } from "@/components/SortableTaskItem";
@@ -90,12 +97,11 @@ export function TaskDashboard() {
   const togglePriorityTask = useMutationWithToast(api.tasks.togglePriority, {
     loading: "Updating priority…",
   });
-  const deleteAllCompleted = useMutationWithToast(api.tasks.removeAllCompleted, {
-    loading: "Deleting completed tasks…",
-    success: "All completed tasks deleted",
-  });
+  const deleteTaskSequential = useMutation(api.tasks.remove);
   const reorderTasks = useMutationWithToast(api.tasks.reorder, {});
-  const moveToGroup = useMutationWithToast(api.tasks.moveToGroup, {});
+  const moveToGroup = useMutationWithToast(api.tasks.moveToGroup, {
+    loading: "Adding...",
+  });
 
   const createGroup = useMutationWithToast(api.taskGroups.create, {
     loading: "Creating group…",
@@ -129,9 +135,14 @@ export function TaskDashboard() {
   const [searchText, setSearchText] = useState("");
   const [showHighPriorityOnly, setShowHighPriorityOnly] = useState(false);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+  const [isDeleteDialogLocked, setIsDeleteDialogLocked] = useState(false);
+  const [isDeletingCompletedBatch, setIsDeletingCompletedBatch] = useState(false);
+  const [deleteBatchCompleted, setDeleteBatchCompleted] = useState(0);
+  const [deleteBatchTotal, setDeleteBatchTotal] = useState(0);
   const [typedHeading, setTypedHeading] = useState("");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
   const [isAddingGroup, setIsAddingGroup] = useState(false);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupColor, setNewGroupColor] = useState(GROUP_COLORS[0]);
 
@@ -197,15 +208,20 @@ export function TaskDashboard() {
   };
 
   const handleAddGroup = async () => {
-    if (!newGroupName.trim()) return;
-    await createGroup({
-      userId,
-      name: newGroupName.trim(),
-      color: newGroupColor,
-    });
-    setNewGroupName("");
-    setNewGroupColor(GROUP_COLORS[0]);
-    setIsAddingGroup(false);
+    if (!newGroupName.trim() || isCreatingGroup) return;
+    setIsCreatingGroup(true);
+    try {
+      await createGroup({
+        userId,
+        name: newGroupName.trim(),
+        color: newGroupColor,
+      });
+      setNewGroupName("");
+      setNewGroupColor(GROUP_COLORS[0]);
+      setIsAddingGroup(false);
+    } finally {
+      setIsCreatingGroup(false);
+    }
   };
 
   const handleEditTask = async (taskId: Id<"tasks">, text: string) => {
@@ -230,6 +246,71 @@ export function TaskDashboard() {
   const pendingTasks = filteredTasks.filter((task) => !task.isCompleted) as DashboardTask[];
   const completedTasks = filteredTasks.filter((task) => task.isCompleted);
   const filteredCompletedCount = completedTasks.length;
+  const selectedNewTaskGroup = (groups ?? []).find((group) => group._id === newTaskGroupId);
+
+  const handleMoveTaskToGroup = useCallback(
+    async (taskId: Id<"tasks">, groupId: Id<"taskGroups"> | undefined) => {
+      const source = (optimisticPendingTasks ?? pendingTasks) as DashboardTask[];
+      const taskToMove = source.find((task) => task._id === taskId);
+      if (taskToMove) {
+        setOptimisticPendingTasks(
+          source.map((task) =>
+            task._id === taskId
+              ? { ...task, groupId }
+              : task
+          )
+        );
+      }
+
+      try {
+        await moveToGroup({ taskId, groupId });
+      } catch (error) {
+        if (taskToMove) {
+          setOptimisticPendingTasks((prev) => {
+            const current = (prev ?? source) as DashboardTask[];
+            return current.map((task) =>
+              task._id === taskId
+                ? { ...task, groupId: taskToMove.groupId }
+                : task
+            );
+          });
+        }
+        throw error;
+      }
+    },
+    [moveToGroup, optimisticPendingTasks, pendingTasks]
+  );
+
+  const handleDeleteCompletedSequentially = useCallback(async () => {
+    const taskIds = completedTasks.map((task) => task._id);
+    const total = taskIds.length;
+    if (total === 0 || isDeletingCompletedBatch) return;
+
+    setIsDeleteDialogLocked(true);
+    setIsDeletingCompletedBatch(true);
+    setDeleteBatchTotal(total);
+    setDeleteBatchCompleted(0);
+
+    try {
+      for (let i = 0; i < taskIds.length; i++) {
+        await deleteTaskSequential({ taskId: taskIds[i] });
+        setDeleteBatchCompleted(i + 1);
+      }
+      // Keep the bar at 100% for a moment so the final state is visible.
+      setDeleteBatchCompleted(total);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      toast.success("All completed tasks deleted");
+      setShowDeleteAllDialog(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete completed tasks";
+      toast.error(message);
+    } finally {
+      setIsDeletingCompletedBatch(false);
+      setDeleteBatchTotal(0);
+      setDeleteBatchCompleted(0);
+      setIsDeleteDialogLocked(false);
+    }
+  }, [completedTasks, deleteTaskSequential, isDeletingCompletedBatch]);
 
   // Group pending tasks by groupId
   const { ungroupedTasks, groupedTasks } = useMemo(() => {
@@ -269,7 +350,7 @@ export function TaskDashboard() {
         if (task) {
           const targetGroupId = overData.groupId;
           if (task.groupId !== targetGroupId) {
-            void moveToGroup({ taskId: task._id as Id<"tasks">, groupId: targetGroupId });
+            void handleMoveTaskToGroup(task._id as Id<"tasks">, targetGroupId);
           }
         }
         return;
@@ -285,10 +366,10 @@ export function TaskDashboard() {
 
       // If they're in different groups, move the active task to the over task's group
       if (activeTask.groupId !== overTask.groupId) {
-        void moveToGroup({
-          taskId: activeTask._id as Id<"tasks">,
-          groupId: overTask.groupId,
-        });
+        void handleMoveTaskToGroup(
+          activeTask._id as Id<"tasks">,
+          overTask.groupId
+        );
         return;
       }
 
@@ -304,11 +385,31 @@ export function TaskDashboard() {
 
       const moved = arrayMove(listTasks, oldIndex, newIndex);
       const newIds = moved.map((t) => t._id) as Id<"tasks">[];
-      void reorderTasks({ taskIds: newIds });
+      const source = (optimisticPendingTasks ?? pendingTasks) as DashboardTask[];
+      const targetGroupKey = groupId ?? null;
+      const movedIdSet = new Set(newIds);
+      const movedQueue = [...moved];
+
+      setOptimisticPendingTasks(
+        source.map((task) => {
+          const taskGroupKey = task.groupId ?? null;
+          if (taskGroupKey === targetGroupKey && movedIdSet.has(task._id)) {
+            return movedQueue.shift() ?? task;
+          }
+          return task;
+        })
+      );
+
+      void reorderTasks({ taskIds: newIds }).catch(() => {
+        setOptimisticPendingTasks(source);
+      });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pendingTasks, ungroupedTasks, groupedTasks]
+    [pendingTasks, ungroupedTasks, groupedTasks, handleMoveTaskToGroup, reorderTasks, optimisticPendingTasks]
   );
+
+  const deleteBatchProgress =
+    deleteBatchTotal > 0 ? Math.round((deleteBatchCompleted / deleteBatchTotal) * 100) : 0;
 
   return (
     <div className="relative min-h-screen">
@@ -477,7 +578,7 @@ export function TaskDashboard() {
               autoFocus
               style={{ resize: "none" }}
             />
-            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "nowrap" }}>
               <button
                 type="button"
                 className="btn-ghost"
@@ -494,23 +595,44 @@ export function TaskDashboard() {
                 {newTaskHighPriority ? "High Priority" : "Mark High Priority"}
               </button>
               {(groups ?? []).length > 0 && (
-                <select
-                  className="select-field"
-                  value={newTaskGroupId ?? ""}
-                  onChange={(e) =>
-                    setNewTaskGroupId(
-                      e.target.value ? (e.target.value as Id<"taskGroups">) : undefined
-                    )
+                <Select
+                  value={newTaskGroupId}
+                  onValueChange={(value) =>
+                    setNewTaskGroupId(value as Id<"taskGroups">)
                   }
-                  style={{ fontSize: "0.75rem", padding: "0.45rem 2rem 0.45rem 0.75rem" }}
                 >
-                  <option value="">No Group</option>
-                  {(groups ?? []).map((g) => (
-                    <option key={g._id} value={g._id}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    className="h-auto min-w-36 max-w-44 flex-1 border-zinc-700 bg-zinc-900 text-xs text-zinc-100 focus-visible:border-violet-400/70 focus-visible:ring-1 focus-visible:ring-violet-400/60 data-popup-open:border-violet-400/70 data-popup-open:ring-1 data-popup-open:ring-violet-400/60"
+                    aria-label="Select group"
+                    style={{
+                      marginLeft: "auto",
+                      padding: "0.45rem 0.75rem",
+                      fontSize: "0.75rem",
+                      borderColor: newTaskGroupId ? "#a78bfa" : undefined,
+                      color: newTaskGroupId ? "#c4b5fd" : undefined,
+                      background: newTaskGroupId ? "rgba(167, 139, 250, 0.12)" : undefined,
+                    }}
+                  >
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <Folder
+                        size={14}
+                        style={{ color: selectedNewTaskGroup?.color ?? "#a1a1aa" }}
+                        className="shrink-0"
+                      />
+                      <span className="truncate">
+                        {selectedNewTaskGroup?.name ?? "No Group"}
+                      </span>
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent className="border-zinc-700 bg-zinc-900 text-zinc-100">
+                    {(groups ?? []).map((g) => (
+                      <SelectItem key={g._id} value={g._id}>
+                        <Folder size={14} style={{ color: g.color }} />
+                        <span className="min-w-0 max-w-40 truncate" title={g.name}>{g.name}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
             </div>
             <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
@@ -543,7 +665,10 @@ export function TaskDashboard() {
               <button
                 className="btn-primary animate-fade-in"
                 disabled={isAdding}
-                onClick={() => setIsAdding(true)}
+                onClick={() => {
+                  setNewTaskGroupId(undefined);
+                  setIsAdding(true);
+                }}
                 style={{
                   flex: 1,
                   padding: "0.875rem",
@@ -642,9 +767,11 @@ export function TaskDashboard() {
               <button
                 className="btn-ghost"
                 onClick={() => {
+                  if (isCreatingGroup) return;
                   setIsAddingGroup(false);
                   setNewGroupName("");
                 }}
+                disabled={isCreatingGroup}
                 style={{ padding: "0.5rem 1rem", fontSize: "0.8125rem" }}
               >
                 Cancel
@@ -652,11 +779,11 @@ export function TaskDashboard() {
               <button
                 className="btn-primary"
                 onClick={() => void handleAddGroup()}
-                disabled={!newGroupName.trim()}
+                disabled={!newGroupName.trim() || isCreatingGroup}
                 style={{ padding: "0.5rem 1rem", fontSize: "0.8125rem" }}
               >
                 <Plus size={16} />
-                Create Group
+                {isCreatingGroup ? "Creating..." : "Create Group"}
               </button>
             </div>
           </div>
@@ -749,7 +876,7 @@ export function TaskDashboard() {
                 <div key={index} className="skeleton" style={{ height: "60px", width: "100%" }} />
               ))}
             </div>
-          ) : tasks.length === 0 ? (
+          ) : tasks.length === 0 && (groups ?? []).length === 0 ? (
             <div className="empty-state animate-fade-in">
               <ListTodo size={64} strokeWidth={1} />
               <h3
@@ -806,7 +933,9 @@ export function TaskDashboard() {
                     onDeleteTask={(taskId) => deleteTask({ taskId })}
                     onEditTask={(taskId, text) => handleEditTask(taskId, text)}
                     onTogglePriority={(taskId) => togglePriorityTask({ taskId })}
-                    onRemoveFromGroup={(taskId) => moveToGroup({ taskId, groupId: undefined })}
+                    onRemoveFromGroup={(taskId) => handleMoveTaskToGroup(taskId, undefined)}
+                    onAddToGroup={(taskId, groupId) => handleMoveTaskToGroup(taskId, groupId)}
+                    availableGroups={groups ?? []}
                     onToggleCollapse={() => toggleCollapseGroup({ groupId: group._id })}
                     onRename={(name) => renameGroup({ groupId: group._id, name })}
                     onDelete={() => deleteGroup({ groupId: group._id })}
@@ -826,12 +955,14 @@ export function TaskDashboard() {
                       onDelete={() => deleteTask({ taskId: task._id })}
                       onEdit={(text) => handleEditTask(task._id, text)}
                       onTogglePriority={() => togglePriorityTask({ taskId: task._id })}
+                      onAddToGroup={(groupId) => handleMoveTaskToGroup(task._id, groupId)}
+                      availableGroups={groups ?? []}
                     />
                   ))}
                 </SortableContext>
               </DndContext>
 
-              {filteredCompletedCount > 0 && (
+              {(filteredCompletedCount > 0 || isDeletingCompletedBatch) && (
                 <div
                   style={{
                     display: "flex",
@@ -892,7 +1023,13 @@ export function TaskDashboard() {
                     </span>
                   </div>
 
-                  <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+                  <AlertDialog
+                    open={showDeleteAllDialog}
+                    onOpenChange={(open) => {
+                      if (isDeleteDialogLocked && !open) return;
+                      setShowDeleteAllDialog(open);
+                    }}
+                  >
                     <AlertDialogTrigger
                       onClick={() => setShowDeleteAllDialog(true)}
                       className="btn-ghost"
@@ -913,23 +1050,44 @@ export function TaskDashboard() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete all completed tasks?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This will permanently remove{" "}
-                          <strong>{filteredCompletedCount}</strong> completed{" "}
-                          {filteredCompletedCount === 1 ? "task" : "tasks"}. This action
-                          cannot be undone.
+                          {isDeletingCompletedBatch
+                            ? "Deleting tasks one by one. Please wait..."
+                            : (
+                              <>
+                                This will permanently remove{" "}
+                                <strong>{filteredCompletedCount}</strong> completed{" "}
+                                {filteredCompletedCount === 1 ? "task" : "tasks"}. This action
+                                cannot be undone.
+                              </>
+                            )}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
+                      {isDeletingCompletedBatch && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs font-medium text-emerald-200">
+                            <span>{deleteBatchCompleted}/{deleteBatchTotal} deleted</span>
+                            <span>{deleteBatchProgress}%</span>
+                          </div>
+                          <div className="h-2.5 overflow-hidden rounded-full border border-emerald-400/30 bg-emerald-950/50">
+                            <div
+                              className="h-full rounded-full bg-linear-to-r from-emerald-400 via-lime-300 to-emerald-500 transition-all duration-300"
+                              style={{ width: `${deleteBatchProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel disabled={isDeletingCompletedBatch}>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           variant="destructive"
-                          onClick={() => {
-                            void deleteAllCompleted({ userId });
-                            setShowDeleteAllDialog(false);
+                          disabled={isDeletingCompletedBatch}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            void handleDeleteCompletedSequentially();
                           }}
                         >
                           <Trash2 size={14} />
-                          Delete All
+                          {isDeletingCompletedBatch ? "Deleting..." : "Delete All"}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
@@ -945,6 +1103,8 @@ export function TaskDashboard() {
                   onDelete={() => deleteTask({ taskId: task._id })}
                   onEdit={(text) => handleEditTask(task._id, text)}
                   onTogglePriority={() => togglePriorityTask({ taskId: task._id })}
+                  onAddToGroup={(groupId) => handleMoveTaskToGroup(task._id, groupId)}
+                  availableGroups={groups ?? []}
                 />
               ))}
             </div>

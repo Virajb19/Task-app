@@ -3,7 +3,6 @@
 import { useState } from "react";
 import {
     ChevronDown,
-    ChevronRight,
     FolderOpen,
     FolderMinus,
     MoreHorizontal,
@@ -56,6 +55,12 @@ type TaskGroupSectionProps = {
     onEditTask: (taskId: Id<"tasks">, text: string) => void;
     onTogglePriority: (taskId: Id<"tasks">) => void;
     onRemoveFromGroup: (taskId: Id<"tasks">) => void;
+    onAddToGroup: (taskId: Id<"tasks">, groupId: Id<"taskGroups">) => void;
+    availableGroups: Array<{
+        _id: Id<"taskGroups">;
+        name: string;
+        color: string;
+    }>;
     onToggleCollapse: () => void;
     onRename: (name: string) => void;
     onDelete: () => void;
@@ -69,6 +74,8 @@ export function TaskGroupSection({
     onEditTask,
     onTogglePriority,
     onRemoveFromGroup,
+    onAddToGroup,
+    availableGroups,
     onToggleCollapse,
     onRename,
     onDelete,
@@ -182,11 +189,14 @@ export function TaskGroupSection({
                     {tasks.length}
                 </span>
 
-                {isCollapsed ? (
-                    <ChevronRight size={16} style={{ color: "var(--text-muted)" }} />
-                ) : (
-                    <ChevronDown size={16} style={{ color: "var(--text-muted)" }} />
-                )}
+                <ChevronDown
+                    size={16}
+                    className="transition-transform duration-200"
+                    style={{
+                        color: "var(--text-muted)",
+                        transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
+                    }}
+                />
 
                 <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
                     <DropdownMenuTrigger
@@ -278,6 +288,8 @@ export function TaskGroupSection({
                                     onEdit={(text) => onEditTask(task._id, text)}
                                     onTogglePriority={() => onTogglePriority(task._id)}
                                     onRemoveFromGroup={() => onRemoveFromGroup(task._id)}
+                                    onAddToGroup={(groupId) => onAddToGroup(task._id, groupId)}
+                                    availableGroups={availableGroups}
                                     isInGroup
                                 />
                             ))}

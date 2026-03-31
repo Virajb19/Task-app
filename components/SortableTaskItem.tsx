@@ -19,6 +19,12 @@ type SortableTaskItemProps = {
   onEdit: (text: string) => void | Promise<unknown>;
   onTogglePriority: () => void | Promise<unknown>;
   onRemoveFromGroup?: () => void | Promise<unknown>;
+  onAddToGroup?: (groupId: Id<"taskGroups">) => void | Promise<unknown>;
+  availableGroups?: Array<{
+    _id: Id<"taskGroups">;
+    name: string;
+    color: string;
+  }>;
   isInGroup?: boolean;
 };
 
@@ -29,6 +35,8 @@ export function SortableTaskItem({
   onEdit,
   onTogglePriority,
   onRemoveFromGroup,
+  onAddToGroup,
+  availableGroups,
   isInGroup,
 }: SortableTaskItemProps) {
   const {
@@ -59,7 +67,7 @@ export function SortableTaskItem({
         type="button"
         ref={setActivatorNodeRef}
         aria-label="Drag to reorder task"
-        className="btn-ghost !hidden min-w-0 p-[0.4rem] text-(--text-muted) md:!inline-flex"
+        className="btn-ghost hidden! min-w-0 p-[0.4rem] text-(--text-muted) md:inline-flex!"
         style={{ touchAction: "none", cursor: isDragging ? "grabbing" : "grab" }}
         {...attributes}
         {...listeners}
@@ -74,6 +82,8 @@ export function SortableTaskItem({
           onEdit={onEdit}
           onTogglePriority={onTogglePriority}
           onRemoveFromGroup={onRemoveFromGroup}
+          onAddToGroup={onAddToGroup}
+          availableGroups={availableGroups}
           isInGroup={isInGroup}
           mobileDragAttributes={attributes}
           mobileDragListeners={listeners}

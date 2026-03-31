@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/core";
 import { motion } from "framer-motion";
 import { useMediaQuery } from "usehooks-ts";
-import { Check, Clock, Flame, FolderMinus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Check, Clock, Flame, Folder, FolderMinus, FolderPlus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
 import {
   Dialog,
@@ -58,6 +58,12 @@ type TaskItemProps = {
   onEdit: (text: string) => void | Promise<unknown>;
   onTogglePriority: () => void | Promise<unknown>;
   onRemoveFromGroup?: () => void | Promise<unknown>;
+  onAddToGroup?: (groupId: Id<"taskGroups">) => void | Promise<unknown>;
+  availableGroups?: Array<{
+    _id: Id<"taskGroups">;
+    name: string;
+    color: string;
+  }>;
   isInGroup?: boolean;
   mobileDragAttributes?: DraggableAttributes;
   mobileDragListeners?: DraggableSyntheticListeners;
@@ -72,6 +78,8 @@ export function TaskItem({
   onEdit,
   onTogglePriority,
   onRemoveFromGroup,
+  onAddToGroup,
+  availableGroups = [],
   isInGroup = false,
   mobileDragAttributes,
   mobileDragListeners,
@@ -82,7 +90,9 @@ export function TaskItem({
   const [isEditing, setIsEditing] = useState(false);
   const [draftText, setDraftText] = useState(task.text);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isAddToGroupDialogOpen, setIsAddToGroupDialogOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAddingToGroup, setIsAddingToGroup] = useState(false);
 
   // Optimistic toggle – flip UI immediately, let mutation run in background
   const [optimisticCompleted, setOptimisticCompleted] = useState(task.isCompleted);
@@ -109,6 +119,23 @@ export function TaskItem({
   const openDelete = () => {
     setIsDeleteDialogOpen(true);
     setIsMobileMenuOpen(false);
+  };
+
+  const openAddToGroup = () => {
+    if (!availableGroups.length) return;
+    setIsAddToGroupDialogOpen(true);
+    setIsMobileMenuOpen(false);
+  };
+
+  const handleAddToGroup = async (groupId: Id<"taskGroups">) => {
+    if (!onAddToGroup || isAddingToGroup) return;
+    setIsAddingToGroup(true);
+    try {
+      await onAddToGroup(groupId);
+      setIsAddToGroupDialogOpen(false);
+    } finally {
+      setIsAddingToGroup(false);
+    }
   };
 
   const highPriority = Boolean(task.isHighPriority);
@@ -280,6 +307,21 @@ export function TaskItem({
               <Pencil size={14} />
               {isEditing ? "Cancel Edit" : "Edit"}
             </DropdownMenuItem>
+            {onAddToGroup && !isInGroup && availableGroups.length > 0 && (
+              <>
+                <DropdownMenuSeparator className="my-1 bg-zinc-700/80" />
+                <DropdownMenuItem
+                  className="gap-2 px-3 py-2.5"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    openAddToGroup();
+                  }}
+                >
+                  <FolderPlus size={14} />
+                  Add to Group
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator className="my-1 bg-zinc-700/80" />
             <DropdownMenuItem
               className="gap-2 px-3 py-2.5"
@@ -335,6 +377,39 @@ export function TaskItem({
             >
               Delete
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAddToGroupDialogOpen} onOpenChange={setIsAddToGroupDialogOpen}>
+        <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-zinc-50">Add Task to Group</DialogTitle>
+            <DialogDescription className="wrap-break-word text-zinc-400">
+              Choose a group for <strong className="break-all text-violet-300">&ldquo;{task.text}&rdquo;</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid max-h-72 gap-2 overflow-y-auto py-1 pr-1">
+            {availableGroups.map((group) => (
+              <Button
+                key={group._id}
+                type="button"
+                variant="outline"
+                className="h-auto justify-start gap-3 border-zinc-700 bg-zinc-900 px-3 py-2.5 text-left text-zinc-100 hover:bg-zinc-800"
+                disabled={isAddingToGroup}
+                onClick={() => void handleAddToGroup(group._id)}
+              >
+                <Folder size={15} style={{ color: group.color }} />
+                <span className="min-w-0 truncate">{group.name}</span>
+              </Button>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <DialogClose variant="outline" size="sm" disabled={isAddingToGroup}>
+              Cancel
+            </DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>
