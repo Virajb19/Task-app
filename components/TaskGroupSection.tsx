@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
     ChevronDown,
     FolderOpen,
-    FolderMinus,
     MoreHorizontal,
     Pencil,
     Trash2,
@@ -16,6 +15,7 @@ import {
 import { useDroppable } from "@dnd-kit/core";
 import { Id } from "@/convex/_generated/dataModel";
 import { SortableTaskItem } from "@/components/SortableTaskItem";
+import { TaskItem } from "@/components/task-item";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -40,6 +40,7 @@ type TaskGroupTask = {
     isCompleted: boolean;
     createdAt: number;
     isHighPriority?: boolean;
+    isOptimistic?: boolean;
 };
 
 type TaskGroupSectionProps = {
@@ -98,6 +99,8 @@ export function TaskGroupSection({
     };
 
     const isCollapsed = group.isCollapsed ?? false;
+    const sortableTasks = tasks.filter((task) => !task.isOptimistic);
+    const optimisticTasks = tasks.filter((task) => task.isOptimistic);
 
     return (
         <div
@@ -276,10 +279,10 @@ export function TaskGroupSection({
                         </div>
                     ) : (
                         <SortableContext
-                            items={tasks.map((t) => t._id)}
+                            items={sortableTasks.map((t) => t._id)}
                             strategy={verticalListSortingStrategy}
                         >
-                            {tasks.map((task) => (
+                            {sortableTasks.map((task) => (
                                 <SortableTaskItem
                                     key={task._id}
                                     task={task}
@@ -289,6 +292,20 @@ export function TaskGroupSection({
                                     onTogglePriority={() => onTogglePriority(task._id)}
                                     onRemoveFromGroup={() => onRemoveFromGroup(task._id)}
                                     onAddToGroup={(groupId) => onAddToGroup(task._id, groupId)}
+                                    availableGroups={availableGroups}
+                                    isInGroup
+                                />
+                            ))}
+                            {optimisticTasks.map((task) => (
+                                <TaskItem
+                                    key={task._id}
+                                    task={task}
+                                    onToggle={() => undefined}
+                                    onDelete={() => undefined}
+                                    onEdit={() => undefined}
+                                    onTogglePriority={() => undefined}
+                                    onRemoveFromGroup={() => undefined}
+                                    onAddToGroup={() => undefined}
                                     availableGroups={availableGroups}
                                     isInGroup
                                 />

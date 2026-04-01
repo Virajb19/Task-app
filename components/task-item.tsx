@@ -52,6 +52,7 @@ type TaskItemProps = {
     isCompleted: boolean;
     createdAt: number;
     isHighPriority?: boolean;
+    isOptimistic?: boolean;
   };
   onToggle: () => void | Promise<unknown>;
   onDelete: () => void | Promise<unknown>;
@@ -93,6 +94,7 @@ export function TaskItem({
   const [isAddToGroupDialogOpen, setIsAddToGroupDialogOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAddingToGroup, setIsAddingToGroup] = useState(false);
+  const isOptimistic = Boolean(task.isOptimistic);
 
   // Optimistic toggle – flip UI immediately, let mutation run in background
   const [optimisticCompleted, setOptimisticCompleted] = useState(task.isCompleted);
@@ -101,6 +103,7 @@ export function TaskItem({
   }, [task.isCompleted]);
 
   const handleToggle = () => {
+    if (isOptimistic) return;
     setOptimisticCompleted((prev) => !prev);
     void onToggle();
   };
@@ -130,9 +133,9 @@ export function TaskItem({
   const handleAddToGroup = async (groupId: Id<"taskGroups">) => {
     if (!onAddToGroup || isAddingToGroup) return;
     setIsAddingToGroup(true);
+    setIsAddToGroupDialogOpen(false);
     try {
       await onAddToGroup(groupId);
-      setIsAddToGroupDialogOpen(false);
     } finally {
       setIsAddingToGroup(false);
     }
@@ -183,6 +186,7 @@ export function TaskItem({
         className={`checkbox-custom ${optimisticCompleted ? "checked" : ""}`}
         onClick={handleToggle}
         aria-label={optimisticCompleted ? "Mark incomplete" : "Mark complete"}
+        disabled={isOptimistic}
       >
         {optimisticCompleted && <Check size={14} color="white" strokeWidth={3} />}
       </button>
@@ -217,6 +221,7 @@ export function TaskItem({
         <p className="mt-0.5 flex items-center gap-1 text-[0.6875rem] font-bold text-(--text-muted)">
           <Clock size={10} />
           {timeAgo} · <span style={{ color: dateColor }}>{formatDate(task.createdAt)}</span>
+          {isOptimistic && <span className="ml-1 text-violet-300">Saving...</span>}
         </p>
       </div>
 
@@ -226,6 +231,7 @@ export function TaskItem({
             type="button"
             onClick={togglePriority}
             aria-label={highPriority ? "Remove high priority" : "Mark high priority"}
+            disabled={isOptimistic}
             className={cn(
               "btn-ghost min-w-0 p-[0.4rem]",
               highPriority
@@ -240,6 +246,7 @@ export function TaskItem({
             type="button"
             onClick={toggleEdit}
             aria-label={isEditing ? "Cancel edit" : "Edit task"}
+            disabled={isOptimistic}
             className="btn-ghost min-w-0 p-[0.4rem]"
           >
             <Pencil size={15} />
@@ -250,6 +257,7 @@ export function TaskItem({
             className="btn-danger"
             aria-label="Delete task"
             onClick={openDelete}
+            disabled={isOptimistic}
           >
             <Trash2 size={16} />
           </button>
@@ -260,6 +268,7 @@ export function TaskItem({
             type="button"
             aria-label="Task options"
             className="btn-ghost"
+            disabled={isOptimistic}
             ref={setMobileDragActivatorNodeRef}
             {...mobileDragAttributes}
             {...mobileDragListeners}
@@ -288,6 +297,7 @@ export function TaskItem({
           >
             <DropdownMenuItem
               className="gap-2 px-3 py-2.5"
+              disabled={isOptimistic}
               onClick={(event) => {
                 event.preventDefault();
                 togglePriority();
@@ -299,6 +309,7 @@ export function TaskItem({
             <DropdownMenuSeparator className="my-1 bg-zinc-700/80" />
             <DropdownMenuItem
               className="gap-2 px-3 py-2.5"
+              disabled={isOptimistic}
               onClick={(event) => {
                 event.preventDefault();
                 toggleEdit();
@@ -312,6 +323,7 @@ export function TaskItem({
                 <DropdownMenuSeparator className="my-1 bg-zinc-700/80" />
                 <DropdownMenuItem
                   className="gap-2 px-3 py-2.5"
+                  disabled={isOptimistic}
                   onClick={(event) => {
                     event.preventDefault();
                     openAddToGroup();
@@ -326,6 +338,7 @@ export function TaskItem({
             <DropdownMenuItem
               className="gap-2 px-3 py-2.5"
               variant="destructive"
+              disabled={isOptimistic}
               onClick={(event) => {
                 event.preventDefault();
                 openDelete();
@@ -339,6 +352,7 @@ export function TaskItem({
                 <DropdownMenuSeparator className="my-1 bg-zinc-700/80" />
                 <DropdownMenuItem
                   className="gap-2 px-3 py-2.5"
+                  disabled={isOptimistic}
                   onClick={(event) => {
                     event.preventDefault();
                     void onRemoveFromGroup();
