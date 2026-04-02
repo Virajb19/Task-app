@@ -95,6 +95,7 @@ export function TaskItem({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAddingToGroup, setIsAddingToGroup] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const isOptimistic = Boolean(task.isOptimistic);
 
   // Optimistic toggle – flip UI immediately, let mutation run in background
@@ -130,8 +131,20 @@ export function TaskItem({
   };
 
   const openDelete = () => {
+    if (isDeleting) return;
     setIsDeleteDialogOpen(true);
     setIsMobileMenuOpen(false);
+  };
+
+  const handleDelete = async () => {
+    if (isDeleting) return;
+    setIsDeleteDialogOpen(false);
+    setIsDeleting(true);
+    try {
+      await onDelete();
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const openAddToGroup = () => {
@@ -241,7 +254,7 @@ export function TaskItem({
             type="button"
             onClick={togglePriority}
             aria-label={highPriority ? "Remove high priority" : "Mark high priority"}
-            disabled={isOptimistic}
+            disabled={isOptimistic || isDeleting}
             className={cn(
               "btn-ghost min-w-0 p-[0.4rem]",
               highPriority
@@ -256,7 +269,7 @@ export function TaskItem({
             type="button"
             onClick={toggleEdit}
             aria-label={isEditing ? "Cancel edit" : "Edit task"}
-            disabled={isOptimistic}
+            disabled={isOptimistic || isDeleting}
             className="btn-ghost min-w-0 p-[0.4rem]"
           >
             <Pencil size={15} />
@@ -267,7 +280,7 @@ export function TaskItem({
             className="btn-danger"
             aria-label="Delete task"
             onClick={openDelete}
-            disabled={isOptimistic}
+            disabled={isOptimistic || isDeleting}
           >
             <Trash2 size={16} />
           </button>
@@ -278,7 +291,7 @@ export function TaskItem({
             type="button"
             aria-label="Task options"
             className="btn-ghost"
-            disabled={isOptimistic}
+            disabled={isOptimistic || isDeleting}
             ref={setMobileDragActivatorNodeRef}
             {...mobileDragAttributes}
             {...mobileDragListeners}
@@ -307,7 +320,7 @@ export function TaskItem({
           >
             <DropdownMenuItem
               className="gap-2 px-3 py-2.5"
-              disabled={isOptimistic}
+              disabled={isOptimistic || isDeleting}
               onClick={(event) => {
                 event.preventDefault();
                 togglePriority();
@@ -319,7 +332,7 @@ export function TaskItem({
             <DropdownMenuSeparator className="my-1 bg-zinc-700/80" />
             <DropdownMenuItem
               className="gap-2 px-3 py-2.5"
-              disabled={isOptimistic}
+              disabled={isOptimistic || isDeleting}
               onClick={(event) => {
                 event.preventDefault();
                 toggleEdit();
@@ -333,7 +346,7 @@ export function TaskItem({
                 <DropdownMenuSeparator className="my-1 bg-zinc-700/80" />
                 <DropdownMenuItem
                   className="gap-2 px-3 py-2.5"
-                  disabled={isOptimistic}
+                  disabled={isOptimistic || isDeleting}
                   onClick={(event) => {
                     event.preventDefault();
                     openAddToGroup();
@@ -348,7 +361,7 @@ export function TaskItem({
             <DropdownMenuItem
               className="gap-2 px-3 py-2.5"
               variant="destructive"
-              disabled={isOptimistic}
+              disabled={isOptimistic || isDeleting}
               onClick={(event) => {
                 event.preventDefault();
                 openDelete();
@@ -362,7 +375,7 @@ export function TaskItem({
                 <DropdownMenuSeparator className="my-1 bg-zinc-700/80" />
                 <DropdownMenuItem
                   className="gap-2 px-3 py-2.5"
-                  disabled={isOptimistic}
+                  disabled={isOptimistic || isDeleting}
                   onClick={(event) => {
                     event.preventDefault();
                     void onRemoveFromGroup();
@@ -394,12 +407,10 @@ export function TaskItem({
               type="button"
               variant="destructive"
               size="sm"
-              onClick={() => {
-                void onDelete();
-                setIsDeleteDialogOpen(false);
-              }}
+              onClick={() => void handleDelete()}
+              disabled={isDeleting}
             >
-              Delete
+              {isDeleting ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
