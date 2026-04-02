@@ -139,6 +139,7 @@ export function TaskDashboard() {
   const [isDeletingCompletedBatch, setIsDeletingCompletedBatch] = useState(false);
   const [deleteBatchCompleted, setDeleteBatchCompleted] = useState(0);
   const [deleteBatchTotal, setDeleteBatchTotal] = useState(0);
+  const [deleteBatchTargetCount, setDeleteBatchTargetCount] = useState(0);
   const [typedHeading, setTypedHeading] = useState("");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
   const [isAddingGroup, setIsAddingGroup] = useState(false);
@@ -153,11 +154,8 @@ export function TaskDashboard() {
     createdAt: number;
     isHighPriority?: boolean;
     groupId?: Id<"taskGroups">;
-    isOptimistic?: boolean;
   };
   const [optimisticPendingTasks, setOptimisticPendingTasks] = useState<DashboardTask[] | null>(null);
-  const [optimisticCreatedTasks, setOptimisticCreatedTasks] = useState<DashboardTask[]>([]);
-  const [optimisticCompletionById, setOptimisticCompletionById] = useState<Record<string, boolean>>({});
   const [isDeletingHeading, setIsDeletingHeading] = useState(false);
 
   useEffect(() => {
@@ -194,18 +192,6 @@ export function TaskDashboard() {
 
   const handleAddTask = async () => {
     if (!newTaskText.trim() || isSubmittingTask) return;
-    const tempId = `optimistic-${Date.now()}-${Math.random()}` as Id<"tasks">;
-    const tempTask: DashboardTask = {
-      _id: tempId,
-      text: newTaskText.trim(),
-      isCompleted: false,
-      createdAt: Date.now(),
-      isHighPriority: newTaskHighPriority,
-      groupId: newTaskGroupId,
-      isOptimistic: true,
-    };
-
-    setOptimisticCreatedTasks((prev) => [tempTask, ...prev]);
     setIsSubmittingTask(true);
     try {
       await createTask({
@@ -218,10 +204,6 @@ export function TaskDashboard() {
       setNewTaskHighPriority(false);
       setNewTaskGroupId(undefined);
       setIsAdding(false);
-      setOptimisticCreatedTasks((prev) => prev.filter((task) => task._id !== tempId));
-    } catch (error) {
-      setOptimisticCreatedTasks((prev) => prev.filter((task) => task._id !== tempId));
-      throw error;
     } finally {
       setIsSubmittingTask(false);
     }
@@ -249,18 +231,7 @@ export function TaskDashboard() {
     await updateTask({ taskId, text: text.trim() });
   };
 
-  const tasksWithOptimisticCompletion = useMemo(() => {
-    return (tasks ?? []).map((task) => {
-      const optimisticCompleted = optimisticCompletionById[task._id];
-      if (typeof optimisticCompleted !== "boolean") return task as DashboardTask;
-      return { ...task, isCompleted: optimisticCompleted } as DashboardTask;
-    });
-  }, [tasks, optimisticCompletionById]);
-
-  const allTasks = useMemo(
-    () => [...optimisticCreatedTasks, ...tasksWithOptimisticCompletion],
-    [optimisticCreatedTasks, tasksWithOptimisticCompletion]
-  );
+  const allTasks = useMemo(() => (tasks ?? []) as DashboardTask[], [tasks]);
 
   const completedCount = allTasks.filter((task) => task.isCompleted).length;
   const totalCount = allTasks.length;
@@ -294,31 +265,9 @@ export function TaskDashboard() {
 
   const handleToggleTask = useCallback(
     async (taskId: Id<"tasks">) => {
-      if ((taskId as string).startsWith("optimistic-")) return;
-
-      const sourceTasks = [...optimisticCreatedTasks, ...(tasks ?? [])] as DashboardTask[];
-      const task = sourceTasks.find((item) => item._id === taskId);
-      if (!task) {
-        await toggleTask({ taskId });
-        return;
-      }
-
-      const currentValue =
-        typeof optimisticCompletionById[taskId] === "boolean"
-          ? optimisticCompletionById[taskId]
-          : task.isCompleted;
-      const nextValue = !currentValue;
-
-      setOptimisticCompletionById((prev) => ({ ...prev, [taskId]: nextValue }));
-
-      try {
-        await toggleTask({ taskId });
-      } catch (error) {
-        setOptimisticCompletionById((prev) => ({ ...prev, [taskId]: currentValue }));
-        throw error;
-      }
+      await toggleTask({ taskId });
     },
-    [optimisticCompletionById, optimisticCreatedTasks, tasks, toggleTask]
+    [toggleTask]
   );
 
   const handleMoveTaskToGroup = useCallback(
@@ -367,6 +316,7 @@ export function TaskDashboard() {
     setIsDeleteDialogLocked(true);
     setIsDeletingCompletedBatch(true);
     setDeleteBatchTotal(total);
+    setDeleteBatchTargetCount(total);
     setDeleteBatchCompleted(0);
 
     // Allow the loading/progress UI to paint before very fast delete loops.
@@ -388,6 +338,7 @@ export function TaskDashboard() {
     } finally {
       setIsDeletingCompletedBatch(false);
       setDeleteBatchTotal(0);
+      setDeleteBatchTargetCount(0);
       setDeleteBatchCompleted(0);
       setIsDeleteDialogLocked(false);
     }
@@ -413,34 +364,6 @@ export function TaskDashboard() {
   // Reset optimistic state when query data changes
   useEffect(() => {
     setOptimisticPendingTasks(null);
-  }, [tasks]);
-
-  useEffect(() => {
-    if (!tasks) return;
-
-    setOptimisticCreatedTasks((prev) =>
-      prev.filter((optimisticTask) => {
-        return !tasks.some(
-          (task) =>
-            task.text === optimisticTask.text &&
-            task.groupId === optimisticTask.groupId &&
-            task.isCompleted === false &&
-            Boolean(task.isHighPriority) === Boolean(optimisticTask.isHighPriority)
-        );
-      })
-    );
-
-    setOptimisticCompletionById((prev) => {
-      const next: Record<string, boolean> = {};
-      for (const [taskId, optimisticValue] of Object.entries(prev)) {
-        const current = tasks.find((task) => task._id === taskId);
-        if (!current) continue;
-        if (current.isCompleted !== optimisticValue) {
-          next[taskId] = optimisticValue;
-        }
-      }
-      return next;
-    });
   }, [tasks]);
 
   const handleDragEnd = useCallback(
@@ -519,6 +442,10 @@ export function TaskDashboard() {
 
   const deleteBatchProgress =
     deleteBatchTotal > 0 ? Math.round((deleteBatchCompleted / deleteBatchTotal) * 100) : 0;
+  const completedCountForDeleteDialog =
+    isDeletingCompletedBatch && deleteBatchTargetCount > 0
+      ? deleteBatchTargetCount
+      : filteredCompletedCount;
 
   return (
     <div className="relative min-h-screen">
@@ -1049,33 +976,20 @@ export function TaskDashboard() {
 
                 {/* Ungrouped Tasks */}
                 <SortableContext
-                  items={ungroupedTasks.filter((task) => !task.isOptimistic).map((task) => task._id)}
+                  items={ungroupedTasks.map((task) => task._id)}
                   strategy={verticalListSortingStrategy}
                 >
                   {ungroupedTasks.map((task) => (
-                    task.isOptimistic ? (
-                      <TaskItem
-                        key={task._id}
-                        task={task}
-                        onToggle={() => undefined}
-                        onDelete={() => undefined}
-                        onEdit={() => undefined}
-                        onTogglePriority={() => undefined}
-                        onAddToGroup={() => undefined}
-                        availableGroups={groups ?? []}
-                      />
-                    ) : (
-                      <SortableTaskItem
-                        key={task._id}
-                        task={task}
-                        onToggle={() => handleToggleTask(task._id)}
-                        onDelete={() => deleteTask({ taskId: task._id })}
-                        onEdit={(text) => handleEditTask(task._id, text)}
-                        onTogglePriority={() => togglePriorityTask({ taskId: task._id })}
-                        onAddToGroup={(groupId) => handleMoveTaskToGroup(task._id, groupId, { optimistic: false })}
-                        availableGroups={groups ?? []}
-                      />
-                    )
+                    <SortableTaskItem
+                      key={task._id}
+                      task={task}
+                      onToggle={() => handleToggleTask(task._id)}
+                      onDelete={() => deleteTask({ taskId: task._id })}
+                      onEdit={(text) => handleEditTask(task._id, text)}
+                      onTogglePriority={() => togglePriorityTask({ taskId: task._id })}
+                      onAddToGroup={(groupId) => handleMoveTaskToGroup(task._id, groupId, { optimistic: false })}
+                      availableGroups={groups ?? []}
+                    />
                   ))}
                 </SortableContext>
               </DndContext>
@@ -1173,8 +1087,8 @@ export function TaskDashboard() {
                             : (
                               <>
                                 This will permanently remove{" "}
-                                <strong>{filteredCompletedCount}</strong> completed{" "}
-                                {filteredCompletedCount === 1 ? "task" : "tasks"}. This action
+                                <strong>{completedCountForDeleteDialog}</strong> completed{" "}
+                                {completedCountForDeleteDialog === 1 ? "task" : "tasks"}. This action
                                 cannot be undone.
                               </>
                             )}

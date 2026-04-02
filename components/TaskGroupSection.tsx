@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     ChevronDown,
     FolderOpen,
@@ -13,6 +13,7 @@ import {
     verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
+import { AnimatePresence, motion } from "framer-motion";
 import { Id } from "@/convex/_generated/dataModel";
 import { SortableTaskItem } from "@/components/SortableTaskItem";
 import { TaskItem } from "@/components/task-item";
@@ -86,6 +87,12 @@ export function TaskGroupSection({
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
 
+    useEffect(() => {
+        if (!isRenaming) {
+            setRenameText(group.name);
+        }
+    }, [group.name, isRenaming]);
+
     const { setNodeRef } = useDroppable({
         id: `group-${group._id}`,
         data: { type: "group", groupId: group._id },
@@ -103,11 +110,12 @@ export function TaskGroupSection({
     const optimisticTasks = tasks.filter((task) => task.isOptimistic);
 
     return (
-        <div
+        <motion.div
             ref={setNodeRef}
             style={{
                 borderRadius: "1rem",
-                border: `2px solid ${group.color}30`,
+                border: `2px solid ${group.color}7a`,
+                boxShadow: `0 0 0 1px ${group.color}55, 0 10px 24px ${group.color}1f`,
                 overflow: "hidden",
             }}
         >
@@ -118,8 +126,8 @@ export function TaskGroupSection({
                     alignItems: "center",
                     gap: "0.625rem",
                     padding: "0.75rem 1rem",
-                    background: `${group.color}10`,
-                    borderBottom: isCollapsed ? "none" : `1px solid ${group.color}20`,
+                    background: `${group.color}1a`,
+                    borderBottom: isCollapsed ? "none" : `1px solid ${group.color}4d`,
                     cursor: "pointer",
                 }}
                 onClick={onToggleCollapse}
@@ -139,27 +147,52 @@ export function TaskGroupSection({
                 </div>
 
                 {isRenaming ? (
-                    <input
-                        className="input-field"
-                        value={renameText}
-                        onChange={(e) => setRenameText(e.target.value)}
-                        onBlur={handleRename}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter") handleRename();
-                            if (e.key === "Escape") {
-                                setRenameText(group.name);
-                                setIsRenaming(false);
-                            }
-                        }}
+                    <div
                         onClick={(e) => e.stopPropagation()}
-                        autoFocus
                         style={{
-                            padding: "0.25rem 0.5rem",
-                            fontSize: "0.8125rem",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
                             flex: 1,
                             minWidth: 0,
                         }}
-                    />
+                    >
+                        <input
+                            className="input-field"
+                            value={renameText}
+                            onChange={(e) => setRenameText(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") handleRename();
+                                if (e.key === "Escape") {
+                                    setRenameText(group.name);
+                                    setIsRenaming(false);
+                                }
+                            }}
+                            autoFocus
+                            style={{
+                                padding: "0.25rem 0.5rem",
+                                fontSize: "0.8125rem",
+                                flex: 1,
+                                minWidth: 0,
+                            }}
+                        />
+                        <button
+                            type="button"
+                            className="btn-primary"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleRename();
+                            }}
+                            disabled={!renameText.trim()}
+                            style={{
+                                padding: "0.35rem 0.625rem",
+                                fontSize: "0.6875rem",
+                                minWidth: "auto",
+                            }}
+                        >
+                            Save
+                        </button>
+                    </div>
                 ) : (
                     <span
                         style={{
@@ -253,67 +286,78 @@ export function TaskGroupSection({
             </div>
 
             {/* Group Body */}
-            {!isCollapsed && (
-                <div
-                    style={{
-                        padding: "0.5rem",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "0.5rem",
-                        minHeight: tasks.length === 0 ? "48px" : undefined,
-                    }}
-                >
-                    {tasks.length === 0 ? (
+            <AnimatePresence initial={false}>
+                {!isCollapsed && (
+                    <motion.div
+                        key="group-body"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                        style={{ overflow: "hidden", willChange: "height, opacity" }}
+                    >
                         <div
                             style={{
+                                padding: "0.5rem",
                                 display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                padding: "0.75rem",
-                                fontSize: "0.75rem",
-                                color: "var(--text-muted)",
-                                fontStyle: "italic",
+                                flexDirection: "column",
+                                gap: "0.5rem",
+                                minHeight: tasks.length === 0 ? "48px" : undefined,
                             }}
                         >
-                            Drop tasks here
+                            {tasks.length === 0 ? (
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        padding: "0.75rem",
+                                        fontSize: "0.75rem",
+                                        color: "var(--text-muted)",
+                                        fontStyle: "italic",
+                                    }}
+                                >
+                                    Drop tasks here
+                                </div>
+                            ) : (
+                                <SortableContext
+                                    items={sortableTasks.map((t) => t._id)}
+                                    strategy={verticalListSortingStrategy}
+                                >
+                                    {sortableTasks.map((task) => (
+                                        <SortableTaskItem
+                                            key={task._id}
+                                            task={task}
+                                            onToggle={() => onToggleTask(task._id)}
+                                            onDelete={() => onDeleteTask(task._id)}
+                                            onEdit={(text) => onEditTask(task._id, text)}
+                                            onTogglePriority={() => onTogglePriority(task._id)}
+                                            onRemoveFromGroup={() => onRemoveFromGroup(task._id)}
+                                            onAddToGroup={(groupId) => onAddToGroup(task._id, groupId)}
+                                            availableGroups={availableGroups}
+                                            isInGroup
+                                        />
+                                    ))}
+                                    {optimisticTasks.map((task) => (
+                                        <TaskItem
+                                            key={task._id}
+                                            task={task}
+                                            onToggle={() => undefined}
+                                            onDelete={() => undefined}
+                                            onEdit={() => undefined}
+                                            onTogglePriority={() => undefined}
+                                            onRemoveFromGroup={() => undefined}
+                                            onAddToGroup={() => undefined}
+                                            availableGroups={availableGroups}
+                                            isInGroup
+                                        />
+                                    ))}
+                                </SortableContext>
+                            )}
                         </div>
-                    ) : (
-                        <SortableContext
-                            items={sortableTasks.map((t) => t._id)}
-                            strategy={verticalListSortingStrategy}
-                        >
-                            {sortableTasks.map((task) => (
-                                <SortableTaskItem
-                                    key={task._id}
-                                    task={task}
-                                    onToggle={() => onToggleTask(task._id)}
-                                    onDelete={() => onDeleteTask(task._id)}
-                                    onEdit={(text) => onEditTask(task._id, text)}
-                                    onTogglePriority={() => onTogglePriority(task._id)}
-                                    onRemoveFromGroup={() => onRemoveFromGroup(task._id)}
-                                    onAddToGroup={(groupId) => onAddToGroup(task._id, groupId)}
-                                    availableGroups={availableGroups}
-                                    isInGroup
-                                />
-                            ))}
-                            {optimisticTasks.map((task) => (
-                                <TaskItem
-                                    key={task._id}
-                                    task={task}
-                                    onToggle={() => undefined}
-                                    onDelete={() => undefined}
-                                    onEdit={() => undefined}
-                                    onTogglePriority={() => undefined}
-                                    onRemoveFromGroup={() => undefined}
-                                    onAddToGroup={() => undefined}
-                                    availableGroups={availableGroups}
-                                    isInGroup
-                                />
-                            ))}
-                        </SortableContext>
-                    )}
-                </div>
-            )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Delete confirmation */}
             <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -344,6 +388,6 @@ export function TaskGroupSection({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+        </motion.div>
     );
 }

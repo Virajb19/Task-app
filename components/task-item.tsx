@@ -94,6 +94,7 @@ export function TaskItem({
   const [isAddToGroupDialogOpen, setIsAddToGroupDialogOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAddingToGroup, setIsAddingToGroup] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
   const isOptimistic = Boolean(task.isOptimistic);
 
   // Optimistic toggle – flip UI immediately, let mutation run in background
@@ -102,10 +103,19 @@ export function TaskItem({
     setOptimisticCompleted(task.isCompleted);
   }, [task.isCompleted]);
 
-  const handleToggle = () => {
-    if (isOptimistic) return;
-    setOptimisticCompleted((prev) => !prev);
-    void onToggle();
+  const handleToggle = async () => {
+    if (isOptimistic || isToggling) return;
+    const previousValue = optimisticCompleted;
+    const nextValue = !previousValue;
+    setOptimisticCompleted(nextValue);
+    setIsToggling(true);
+    try {
+      await onToggle();
+    } catch {
+      setOptimisticCompleted(previousValue);
+    } finally {
+      setIsToggling(false);
+    }
   };
 
   const toggleEdit = () => {
@@ -184,9 +194,9 @@ export function TaskItem({
     >
       <button
         className={`checkbox-custom ${optimisticCompleted ? "checked" : ""}`}
-        onClick={handleToggle}
+        onClick={() => void handleToggle()}
         aria-label={optimisticCompleted ? "Mark incomplete" : "Mark complete"}
-        disabled={isOptimistic}
+        disabled={isOptimistic || isToggling}
       >
         {optimisticCompleted && <Check size={14} color="white" strokeWidth={3} />}
       </button>
