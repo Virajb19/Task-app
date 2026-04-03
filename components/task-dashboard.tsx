@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useMutation, useQuery } from "convex/react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import {
   closestCenter,
   DndContext,
@@ -25,6 +26,7 @@ import {
   Flame,
   Folder,
   FolderPlus,
+  Folders,
   ListTodo,
   LogOut,
   Plus,
@@ -956,6 +958,52 @@ export function TaskDashboard() {
                 onDragEnd={handleDragEnd}
               >
                 {/* Task Groups */}
+                {(groups ?? []).length > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.75rem",
+                      padding: "0.5rem 0.25rem",
+                      margin: "0.25rem 0 0.5rem",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "1px",
+                        flex: 1,
+                        background: "linear-gradient(90deg, transparent, rgba(203, 213, 225, 0.55))",
+                      }}
+                    />
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "0.45rem",
+                      }}
+                    >
+                      <Folders size={16} style={{ color: "#cbd5e1" }} />
+                      <span
+                        style={{
+                          fontSize: "0.8125rem",
+                          fontWeight: 600,
+                          color: "#cbd5e1",
+                          letterSpacing: "0.01em",
+                        }}
+                      >
+                        Groups ({(groups ?? []).length})
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        height: "1px",
+                        flex: 1,
+                        background: "linear-gradient(90deg, rgba(203, 213, 225, 0.55), transparent)",
+                      }}
+                    />
+                  </div>
+                )}
                 {(groups ?? []).map((group) => (
                   <TaskGroupSection
                     key={group._id}
@@ -975,6 +1023,52 @@ export function TaskDashboard() {
                 ))}
 
                 {/* Ungrouped Tasks */}
+                {ungroupedTasks.length > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.75rem",
+                      padding: "0.5rem 0.25rem",
+                      margin: "0.5rem 0",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "1px",
+                        flex: 1,
+                        background: "linear-gradient(90deg, transparent, rgba(203, 213, 225, 0.55))",
+                      }}
+                    />
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "0.45rem",
+                      }}
+                    >
+                      <Image src="/task.png" alt="Task" width={20} height={20} />
+                      <span
+                        style={{
+                          fontSize: "0.8125rem",
+                          fontWeight: 600,
+                          color: "#cbd5e1",
+                          letterSpacing: "0.01em",
+                        }}
+                      >
+                        Tasks ({ungroupedTasks.length})
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        height: "1px",
+                        flex: 1,
+                        background: "linear-gradient(90deg, rgba(203, 213, 225, 0.55), transparent)",
+                      }}
+                    />
+                  </div>
+                )}
                 <SortableContext
                   items={ungroupedTasks.map((task) => task._id)}
                   strategy={verticalListSortingStrategy}
