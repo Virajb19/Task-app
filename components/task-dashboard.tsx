@@ -90,8 +90,6 @@ export function TaskDashboard() {
   });
   const toggleTask = useMutationWithToast(api.tasks.toggleComplete, {
     loading: "Updating task…",
-    success: "Task updated",
-    error: "Failed to update task",
   });
   const deleteTask = useMutationWithToast(api.tasks.remove, {
     loading: "Deleting task…",
