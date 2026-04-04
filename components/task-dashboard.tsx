@@ -85,9 +85,13 @@ export function TaskDashboard() {
 
   const createTask = useMutationWithToast(api.tasks.create, {
     loading: "Adding task…",
+    success: "Task added",
+    error: "Failed to add task",
   });
   const toggleTask = useMutationWithToast(api.tasks.toggleComplete, {
     loading: "Updating task…",
+    success: "Task updated",
+    error: "Failed to update task",
   });
   const deleteTask = useMutationWithToast(api.tasks.remove, {
     loading: "Deleting task…",
@@ -104,6 +108,8 @@ export function TaskDashboard() {
   const reorderTasks = useMutationWithToast(api.tasks.reorder, {});
   const moveToGroup = useMutationWithToast(api.tasks.moveToGroup, {
     loading: "Adding...",
+    success: "Task added to group",
+    error: "Failed to add task to group",
   });
 
   const createGroup = useMutationWithToast(api.taskGroups.create, {
