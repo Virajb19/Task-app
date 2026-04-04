@@ -132,7 +132,7 @@ export function TaskGroupSection({
                     cursor: "pointer",
                 }}
                 onClick={() => {
-                    triggerHaptic(30);
+                    triggerHaptic(50);
                     onToggleCollapse();
                 }}
             >
