@@ -59,13 +59,13 @@ export default function RootLayout({
           expand={false}
           duration={3000}
           toastOptions={{
-            // style: {
-            //   background: "linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,247,237,0.96))",
-            //   border: "1px solid rgba(251, 146, 60, 0.45)",
-            //   color: "#111827",
-            //   backdropFilter: "blur(20px)",
-            //   boxShadow: "0 12px 35px rgba(251, 146, 60, 0.28)",
-            // },
+            style: {
+              background: "linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,247,237,0.96))",
+              border: "1px solid rgba(251, 146, 60, 0.45)",
+              color: "#111827",
+              backdropFilter: "blur(20px)",
+              boxShadow: "0 12px 35px rgba(251, 146, 60, 0.28)",
+            },
           }}
         />
       </body>
