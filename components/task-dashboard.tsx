@@ -61,6 +61,7 @@ import { SortableTaskItem } from "@/components/SortableTaskItem";
 import { TaskGroupSection } from "@/components/TaskGroupSection";
 import { UpdatePhotoModal } from "@/components/update-photo-modal";
 import YearProgress from "@/components/YearProgress";
+import { triggerHaptic } from "@/lib/haptics";
 
 const TYPEWRITER_TEXT = "Get things done";
 
@@ -327,6 +328,7 @@ export function TaskDashboard() {
     try {
       for (let i = 0; i < taskIds.length; i++) {
         await deleteTaskSequential({ taskId: taskIds[i] });
+        triggerHaptic([30, 50, 60]);
         setDeleteBatchCompleted(i + 1);
       }
       // Keep the bar at 100% for a moment so the final state is visible.
