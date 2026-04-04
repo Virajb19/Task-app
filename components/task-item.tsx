@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { useMediaQuery } from "usehooks-ts";
 import { Check, Clock, Flame, Folder, FolderMinus, FolderPlus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
+import { triggerHaptic } from "@/lib/haptics";
 import {
   Dialog,
   DialogClose,
@@ -140,6 +141,7 @@ export function TaskItem({
     if (isDeleting) return;
     setIsDeleteDialogOpen(false);
     setIsDeleting(true);
+    triggerHaptic([30, 50, 60]);
     try {
       await onDelete();
     } finally {

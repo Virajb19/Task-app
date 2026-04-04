@@ -15,6 +15,7 @@ import {
 import { useDroppable } from "@dnd-kit/core";
 import { AnimatePresence, motion } from "framer-motion";
 import { Id } from "@/convex/_generated/dataModel";
+import { triggerHaptic } from "@/lib/haptics";
 import { SortableTaskItem } from "@/components/SortableTaskItem";
 import { TaskItem } from "@/components/task-item";
 import {
@@ -130,7 +131,10 @@ export function TaskGroupSection({
                     borderBottom: isCollapsed ? "none" : `1px solid ${group.color}4d`,
                     cursor: "pointer",
                 }}
-                onClick={onToggleCollapse}
+                onClick={() => {
+                    triggerHaptic(30);
+                    onToggleCollapse();
+                }}
             >
                 <div
                     style={{
@@ -378,6 +382,7 @@ export function TaskGroupSection({
                             variant="destructive"
                             size="sm"
                             onClick={() => {
+                                triggerHaptic([30, 50, 60]);
                                 onDelete();
                                 setShowDeleteDialog(false);
                             }}
