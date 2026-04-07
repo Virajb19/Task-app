@@ -1251,7 +1251,7 @@ export function TaskDashboard() {
             color: "var(--text-muted)",
           }}
         >
-          Powered by Convex · TaskFlow
+          Powered by <span className="text-white font-bold">Convex</span>· TaskFlow
         </footer>
       </div>
 
