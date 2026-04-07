@@ -664,7 +664,7 @@ export function TaskDashboard() {
                       </span>
                     </span>
                   </SelectTrigger>
-                  <SelectContent className="border-zinc-700 bg-zinc-900 text-zinc-100">
+                  <SelectContent className="max-h-[200px] overflow-y-auto border-zinc-700 bg-zinc-900 text-zinc-100">
                     {(groups ?? []).map((g) => (
                       <SelectItem key={g._id} value={g._id}>
                         <Folder size={14} style={{ color: g.color }} />
