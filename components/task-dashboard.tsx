@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useMutation, useQuery } from "convex/react";
-import { motion } from "framer-motion";
+import { motion, useScroll, useSpring, useTransform } from "framer-motion";
 import Image from "next/image";
+import { twMerge } from "tailwind-merge";
 import {
   closestCenter,
   DndContext,
@@ -75,6 +76,28 @@ const GROUP_COLORS = [
   "#06b6d4", // cyan
   "#f97316", // orange
 ];
+
+function Spinner({
+  size = 16,
+  color = "#ffffff",
+  className,
+}: {
+  size?: number;
+  color?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={twMerge("rounded-full animate-spin", className)}
+      style={{
+        width: size,
+        height: size,
+        border: "3px solid rgba(148, 163, 184, 0.35)",
+        borderTopColor: color,
+      }}
+    />
+  );
+}
 
 export function TaskDashboard() {
   const { data: session } = useSession();
@@ -454,10 +477,43 @@ export function TaskDashboard() {
     isDeletingCompletedBatch && deleteBatchTargetCount > 0
       ? deleteBatchTargetCount
       : filteredCompletedCount;
+  const { scrollYProgress } = useScroll();
+  const smoothScrollYProgress = useSpring(scrollYProgress, {
+    stiffness: 180,
+    damping: 30,
+    mass: 0.22,
+  });
+  const scrollBarOpacity = useTransform(smoothScrollYProgress, [0, 0.03, 1], [0.55, 0.9, 1]);
+  const scrollThumbOpacity = useTransform(smoothScrollYProgress, [0, 0.05, 1], [0.35, 0.95, 1]);
+  const scrollThumbPosition = useTransform(
+    smoothScrollYProgress,
+    (value) => `${Math.min(Math.max(value * 100, 0), 100)}%`
+  );
 
   return (
     <div className="relative min-h-screen">
       <div className="bg-mesh" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-x-0 top-0 z-50"
+      >
+        <div className="relative h-1.25 w-full overflow-hidden bg-slate-900/45 shadow-[0_2px_14px_rgba(15,23,42,0.35)]">
+          <motion.div
+            className="h-full origin-left bg-linear-to-r from-cyan-400 via-violet-500 to-pink-400 shadow-[0_0_18px_rgba(139,92,246,0.75)]"
+            style={{
+              scaleX: smoothScrollYProgress,
+              opacity: scrollBarOpacity,
+            }}
+          />
+          <motion.div
+            className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 bg-fuchsia-50 shadow-[0_0_16px_rgba(244,114,182,0.9)]"
+            style={{
+              left: scrollThumbPosition,
+              opacity: scrollThumbOpacity,
+            }}
+          />
+        </div>
+      </div>
       <div
         className="relative z-10"
         style={{
@@ -694,7 +750,7 @@ export function TaskDashboard() {
                 disabled={!newTaskText.trim() || isSubmittingTask}
                 style={{ padding: "0.5rem 1rem", fontSize: "0.8125rem" }}
               >
-                <Plus size={16} />
+                {isSubmittingTask ? <Spinner size={16} color="#ffffff" /> : <Plus size={16} />}
                 {isSubmittingTask ? "Adding…" : "Add"}
               </button>
             </div>
@@ -822,7 +878,7 @@ export function TaskDashboard() {
                 disabled={!newGroupName.trim() || isCreatingGroup}
                 style={{ padding: "0.5rem 1rem", fontSize: "0.8125rem" }}
               >
-                <Plus size={16} />
+                {isCreatingGroup ? <Spinner size={16} color="#ffffff" /> : <Plus size={16} />}
                 {isCreatingGroup ? "Creating..." : "Create Group"}
               </button>
             </div>
@@ -1251,7 +1307,15 @@ export function TaskDashboard() {
             color: "var(--text-muted)",
           }}
         >
-          Powered by <span className="text-white font-bold">Convex</span>· TaskFlow
+          <span className="inline-flex items-center gap-1">
+            Powered by
+            <span className="inline-flex items-center gap-1 text-white font-bold">
+              <Image src="/convex.png" alt="Convex" width={14} height={14} />
+              Convex
+            </span>
+            <span aria-hidden="true">·</span>
+            <span>TaskFlow</span>
+          </span>
         </footer>
       </div>
 
