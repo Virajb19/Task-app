@@ -488,7 +488,7 @@ export function TaskDashboard() {
       >
         <div className="relative h-[4px] w-full overflow-hidden bg-violet-950/35">
           <motion.div
-            className="h-full origin-left bg-violet-500"
+            className="h-full origin-left bg-purple-400"
             style={{
               scaleX: scrollYProgress,
               willChange: "transform",
