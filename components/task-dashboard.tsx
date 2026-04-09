@@ -128,9 +128,15 @@ export function TaskDashboard() {
   const deleteTaskSequential = useMutation(api.tasks.remove);
   const reorderTasks = useMutationWithToast(api.tasks.reorder, {});
   const moveToGroup = useMutationWithToast(api.tasks.moveToGroup, {
-    loading: "Adding...",
-    success: "Task added to group",
-    error: "Failed to add task to group",
+    loading: "Moving…",
+    success: (args) => {
+      if (args?.groupId) {
+        const targetGroup = (groups ?? []).find((g) => g._id === args.groupId);
+        return `Added to ${targetGroup?.name ?? "group"}`;
+      }
+      return "Removed from group";
+    },
+    error: "Failed to move task",
   });
 
   const createGroup = useMutationWithToast(api.taskGroups.create, {
@@ -355,7 +361,7 @@ export function TaskDashboard() {
     try {
       for (let i = 0; i < taskIds.length; i++) {
         await deleteTaskSequential({ taskId: taskIds[i] });
-        triggerHaptic([30, 50, 60]);
+        triggerHaptic([50, 20]);
         setDeleteBatchCompleted(i + 1);
       }
       // Keep the bar at 100% for a moment so the final state is visible.
@@ -486,7 +492,7 @@ export function TaskDashboard() {
         aria-hidden="true"
         className="pointer-events-none fixed inset-x-0 top-0 z-50"
       >
-        <div className="relative h-[4px] w-full overflow-hidden bg-violet-950/35">
+        <div className="relative h-[5px] w-full overflow-hidden bg-violet-950/35">
           <motion.div
             className="h-full origin-left bg-purple-400"
             style={{

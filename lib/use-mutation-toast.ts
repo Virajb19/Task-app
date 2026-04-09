@@ -15,7 +15,7 @@ export function useMutationWithToast<
   mutationFn: Mutation,
   options: {
     loading?: string;
-    success?: string;
+    success?: string | ((args: Parameters<ReturnType<typeof useMutation<Mutation>>>[0]) => string | undefined);
     error?: string;
   } = {}
 ) {
@@ -30,8 +30,9 @@ export function useMutationWithToast<
     const toastId = toast.loading(loading);
     try {
       const result = await mutation(args as Parameters<typeof mutation>[0]);
-      if (success) {
-        toast.success(success, { id: toastId });
+      const successMsg = typeof success === "function" ? success(args) : success;
+      if (successMsg) {
+        toast.success(successMsg, { id: toastId });
       } else {
         toast.dismiss(toastId);
       }
