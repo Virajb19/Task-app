@@ -47,7 +47,12 @@ export const toggleComplete = mutation({
   handler: async (ctx, args) => {
     const task = await ctx.db.get(args.taskId);
     if (!task) throw new Error("Task not found");
-    await ctx.db.patch(args.taskId, { isCompleted: !task.isCompleted });
+    const nextIsCompleted = !task.isCompleted;
+    await ctx.db.patch(args.taskId, {
+      isCompleted: nextIsCompleted,
+      // When moving a task back to pending, bump its order so it appears first.
+      ...(task.isCompleted ? { order: Date.now() } : {}),
+    });
   },
 });
 
