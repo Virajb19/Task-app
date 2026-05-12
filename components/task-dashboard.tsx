@@ -268,9 +268,10 @@ export function TaskDashboard() {
   };
 
   const allTasks = useMemo(() => (tasks ?? []) as DashboardTask[], [tasks]);
+  const ungroupedAllTasks = useMemo(() => allTasks.filter((task) => !task.groupId), [allTasks]);
 
-  const completedCount = allTasks.filter((task) => task.isCompleted).length;
-  const totalCount = allTasks.length;
+  const completedCount = ungroupedAllTasks.filter((task) => task.isCompleted).length;
+  const totalCount = ungroupedAllTasks.length;
   const progressPercent =
     totalCount === 0
       ? tasks === undefined
@@ -285,7 +286,7 @@ export function TaskDashboard() {
       : Math.min((completedCount / totalCount) * 100, 100);
   const pendingCount = totalCount - completedCount;
   const highPriorityCount =
-    allTasks.filter((task) => Boolean((task as { isHighPriority?: boolean }).isHighPriority)).length;
+    ungroupedAllTasks.filter((task) => Boolean((task as { isHighPriority?: boolean }).isHighPriority)).length;
   const filteredTasks = allTasks.filter((task) => {
     const matchesSearch = task.text
       .toLowerCase()
